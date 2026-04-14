@@ -21,7 +21,7 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplete }) => {
-  const { medicines, reminders, updateReminderStatus, user, activeProfileId, profiles, checkDailyLogin } = useStore();
+  const { medicines, reminders, updateReminderStatus, user, activeProfileId, profiles, checkDailyLogin, tasks, updateTaskStatus } = useStore();
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = React.useState(false);
@@ -36,6 +36,7 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
   
   const profileMedicines = medicines.filter(m => m.profileId === activeProfileId);
   const profileReminders = reminders.filter(r => r.profileId === activeProfileId && r.date === today);
+  const profileTasks = tasks.filter(t => t.profileId === activeProfileId && t.dueDate === today && t.status === 'pending');
   
   const takenCount = profileReminders.filter(r => r.status === 'taken').length;
   const totalCount = profileReminders.length;
@@ -104,7 +105,7 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
   };
 
   return (
-    <div className="pb-24">
+    <div className="pb-32">
       <div className="p-6 space-y-8">
           {/* Header */}
           <motion.header 
@@ -256,6 +257,39 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
             ))}
           </div>
         </section>
+
+        {/* Today's Tasks */}
+        {profileTasks.length > 0 && (
+          <section className="space-y-4">
+            <h3 className="font-display font-bold text-slate-900 px-1">Today's Tasks</h3>
+            <div className="space-y-3">
+              {profileTasks.map((task) => (
+                <Card key={task.id} className="border-none bg-indigo-50/50 card-shadow rounded-[20px]">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm">
+                      <Clock size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-900 text-sm">{task.title}</h4>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">{task.dueTime}</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        updateTaskStatus(task.id, 'completed');
+                        toast.success('Task completed!');
+                      }}
+                      className="text-primary font-bold"
+                    >
+                      Done
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Today's Schedule */}
         <section className="space-y-4">

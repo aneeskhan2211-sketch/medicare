@@ -6,6 +6,7 @@ import { AddMed } from './screens/AddMed';
 import { CalendarView } from './screens/Calendar';
 import { Profile } from './screens/Profile';
 import { Analytics } from './screens/Analytics';
+import { Tasks } from './screens/Tasks';
 import { Login } from './screens/Login';
 import { Paywall } from './screens/Paywall';
 import { Branding } from './screens/Branding';
@@ -16,15 +17,15 @@ import { RefillDialog } from './screens/RefillDialog';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStore } from './store/useStore';
-import { Medicine, Reminder } from './types';
+import { Medicine, Reminder, Task } from './types';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { format } from 'date-fns';
-import { AlertCircle, Bell, Check, Clock, X } from 'lucide-react';
+import { AlertCircle, Bell, Check, Clock, X, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function App() {
-  const { isAuthenticated, user, reminders, updateReminderStatus, medicines, profiles, addReminder, generateReminders } = useStore();
+  const { isAuthenticated, user, reminders, updateReminderStatus, medicines, profiles, addReminder, generateReminders, tasks, updateTaskStatus } = useStore();
   const [activeTab, setActiveTab] = useState('home');
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -32,6 +33,7 @@ export default function App() {
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(null);
   const [refillMed, setRefillMed] = useState<Medicine | null>(null);
   const [activeReminder, setActiveReminder] = useState<Reminder | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [autoOpenScanner, setAutoOpenScanner] = useState(false);
   const [scannerSource, setScannerSource] = useState<'camera' | 'gallery' | undefined>(undefined);
   const [scannedMeds, setScannedMeds] = useState<any[]>([]);
@@ -61,6 +63,27 @@ export default function App() {
         setActiveReminder(dueReminder);
         // Play sound simulation
         console.log('Reminder sound playing...');
+      }
+
+      const dueTask = tasks.find(t => 
+        t.dueDate === today && 
+        t.status === 'pending' && 
+        t.dueTime === currentTime
+      );
+
+      if (dueTask && !activeTask) {
+        setActiveTask(dueTask);
+        toast.info(`Task Reminder: ${dueTask.title}`, {
+          description: `It's time for your scheduled task.`,
+          icon: <CheckSquare size={16} className="text-primary" />,
+          action: {
+            label: 'Done',
+            onClick: () => {
+              updateTaskStatus(dueTask.id, 'completed');
+              setActiveTask(null);
+            }
+          }
+        });
       }
     };
 
@@ -109,6 +132,7 @@ export default function App() {
       );
       case 'calendar': return <CalendarView />;
       case 'analytics': return <Analytics />;
+      case 'tasks': return <Tasks />;
       case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} />;
       default: return <Home />;
     }
@@ -180,7 +204,7 @@ export default function App() {
         </motion.div>
       </AnimatePresence>
 
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      {activeTab !== 'add' && <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />}
       
       {/* Smart Reminder Popup */}
       <AnimatePresence>

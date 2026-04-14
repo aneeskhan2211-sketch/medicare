@@ -23,6 +23,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
   const [editedDosage, setEditedDosage] = useState(medicine.dosage);
   const [editedTimes, setEditedTimes] = useState([...medicine.times]);
   const [editedInstructions, setEditedInstructions] = useState(medicine.instructions || '');
+  const [editedReminderTone, setEditedReminderTone] = useState(medicine.reminderTone || 'standard');
   const [editedExpiryDate, setEditedExpiryDate] = useState(medicine.expiryDate ? format(new Date(medicine.expiryDate), 'yyyy-MM-dd') : '');
   
   const medReminders = reminders
@@ -41,6 +42,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
       dosage: editedDosage,
       times: editedTimes,
       instructions: editedInstructions,
+      reminderTone: editedReminderTone,
       expiryDate: editedExpiryDate ? new Date(editedExpiryDate).toISOString() : undefined
     });
     
@@ -162,6 +164,18 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   onChange={(e) => setEditedExpiryDate(e.target.value)}
                   className="rounded-xl border-slate-200"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reminder Tone</label>
+                <select 
+                  value={editedReminderTone}
+                  onChange={(e) => setEditedReminderTone(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all appearance-none"
+                >
+                  <option value="gentle">Gentle</option>
+                  <option value="standard">Standard</option>
+                  <option value="loud">Loud</option>
+                </select>
               </div>
             </div>
           )}

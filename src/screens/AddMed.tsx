@@ -39,6 +39,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
   const [stock, setStock] = useState('30');
   const [snoozeEnabled, setSnoozeEnabled] = useState(true);
   const [snoozeInterval, setSnoozeInterval] = useState('10');
+  const [reminderTone, setReminderTone] = useState('standard');
   const [medImage, setMedImage] = useState<string | null>(null);
   
   const [isScanning, setIsScanning] = useState(false);
@@ -141,6 +142,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
       expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined,
       instructions,
       mealInstruction,
+      reminderTone,
       snoozeEnabled,
       snoozeInterval: parseInt(snoozeInterval) || 10,
       color: '#' + Math.floor(Math.random()*16777215).toString(16),
@@ -343,11 +345,20 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                       key={idx}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="bg-white px-4 py-2 rounded-xl card-shadow flex items-center gap-3 border border-slate-100"
+                      className="bg-white px-3 py-2 rounded-xl card-shadow flex items-center gap-2 border border-slate-100"
                     >
                       <Clock size={14} className="text-primary" />
-                      <span className="text-sm font-bold text-slate-700">{time}</span>
-                      <button onClick={() => setTimes(times.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <input 
+                        type="time" 
+                        value={time}
+                        onChange={(e) => {
+                          const newTimes = [...times];
+                          newTimes[idx] = e.target.value;
+                          setTimes(newTimes);
+                        }}
+                        className="text-sm font-bold text-slate-700 bg-transparent border-none outline-none w-16 focus:ring-0"
+                      />
+                      <button onClick={() => setTimes(times.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-500 transition-colors ml-1">
                         <X size={14} />
                       </button>
                     </motion.div>
@@ -412,6 +423,21 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   </div>
                 </motion.div>
               )}
+
+              <div className="pt-4 border-t border-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">Reminder Tone</span>
+                  <select 
+                    value={reminderTone}
+                    onChange={(e) => setReminderTone(e.target.value)}
+                    className="bg-slate-50 border-none rounded-lg px-3 py-1 text-[10px] font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all"
+                  >
+                    <option value="gentle">Gentle</option>
+                    <option value="standard">Standard</option>
+                    <option value="loud">Loud</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Stock & Expiry */}

@@ -1,5 +1,5 @@
 import { create } from 'zustand'; // I'll install zustand for easier state management
-import { Medicine, Reminder, User, ChatMessage, Profile } from '../types';
+import { Medicine, Reminder, User, ChatMessage, Profile, Task } from '../types';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ interface AppState {
   activeProfileId: string;
   medicines: Medicine[];
   reminders: Reminder[];
+  tasks: Task[];
   isPremium: boolean;
   chatHistory: ChatMessage[];
   isAuthenticated: boolean;
@@ -27,6 +28,9 @@ interface AppState {
   setTier: (tier: User['tier']) => void;
   addReminder: (reminder: Reminder) => void;
   updateReminderStatus: (id: string, status: Reminder['status']) => void;
+  addTask: (task: Task) => void;
+  updateTaskStatus: (id: string, status: Task['status']) => void;
+  deleteTask: (id: string) => void;
   syncData: () => Promise<void>;
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChat: () => void;
@@ -71,6 +75,7 @@ export const useStore = create<AppState>()(
       activeProfileId: 'profile-1',
       medicines: [],
       reminders: [],
+      tasks: [],
       isPremium: false,
       isAuthenticated: false,
       chatHistory: [
@@ -166,7 +171,7 @@ export const useStore = create<AppState>()(
         reminders: [...state.reminders, reminder]
       })),
 
-      updateReminderStatus: (id, status) => {
+      updateReminderStatus: (id: string, status) => {
         const { reminders, user, medicines, updateMedicine, addCoins, updateStreak } = get();
         const updatedReminders = reminders.map((r) => r.id === id ? { ...r, status } : r);
         
@@ -194,6 +199,18 @@ export const useStore = create<AppState>()(
         
         set({ reminders: updatedReminders });
       },
+
+      addTask: (task) => set((state) => ({
+        tasks: [...state.tasks, task]
+      })),
+
+      updateTaskStatus: (id, status) => set((state) => ({
+        tasks: state.tasks.map((t) => t.id === id ? { ...t, status } : t)
+      })),
+
+      deleteTask: (id) => set((state) => ({
+        tasks: state.tasks.filter((t) => t.id !== id)
+      })),
 
       syncData: async () => {
         // Simulate cloud sync

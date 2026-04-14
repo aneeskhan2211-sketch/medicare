@@ -97,6 +97,17 @@ export interface AuthState {
   error: string | null;
 }
 
+export interface Task {
+  id: string;
+  profileId: string;
+  title: string;
+  description?: string;
+  dueDate: string; // YYYY-MM-DD
+  dueTime: string; // HH:mm
+  status: 'pending' | 'completed';
+  userId: string;
+}
+
 export interface AdherenceData {
   date: string;
   taken: number;

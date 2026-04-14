@@ -51,7 +51,7 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
   };
 
   return (
-    <div className="pb-24 h-full flex flex-col">
+    <div className="pb-32 h-full flex flex-col">
       <div className="p-6 space-y-6">
           <header className="flex justify-between items-center">
             <div className="space-y-1">

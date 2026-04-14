@@ -25,7 +25,7 @@
   --radius-3xl: 2rem;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 
 :root {
   --background: linear-gradient(180deg, #F7F8FC 0%, #EEF2FF 100%);
@@ -40,6 +40,13 @@ body {
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
   min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 .page-container {
