@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-primary: #5B3DF5;
+  --color-primary-foreground: #ffffff;
+  
+  --color-secondary: #7C67FF;
+  --color-secondary-foreground: #ffffff;
+  
+  --color-success: #22C55E;
+  --color-warning: #F97316;
+  --color-danger: #EF4444;
+  
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  
+  --radius-xl: 1.5rem; /* 24px */
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2rem;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+:root {
+  --background: linear-gradient(180deg, #F7F8FC 0%, #EEF2FF 100%);
+  --foreground: #0f172a;
+  --soft-shadow: 0px 8px 24px rgba(0,0,0,0.06);
+  --premium-shadow: 0 20px 40px -10px rgba(91, 61, 245, 0.2);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+}
+
+.page-container {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.watermark-pill {
+  position: absolute;
+  bottom: 40px;
+  right: 20px;
+  width: 200px;
+  height: 200px;
+  background-image: url('https://cdn-icons-png.flaticon.com/512/3062/3062634.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(2px);
+}
+
+.content-layer {
+  position: relative;
+  z-index: 2;
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.filter-green {
+  filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(86deg) brightness(118%) contrast(119%);
+}
