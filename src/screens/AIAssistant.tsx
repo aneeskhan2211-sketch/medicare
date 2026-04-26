@@ -17,7 +17,54 @@ interface AIAssistantProps {
 }
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedicine, onScanComplete }) => {
-  const { chatHistory, addChatMessage, clearChat, medicines, reminders, incrementAiQuery, spendCoins, user } = useStore();
+  const { chatHistory, addChatMessage, clearChat, medicines, reminders, incrementAiQuery, spendCoins, user, addMedicine, activeProfileId } = useStore();
+
+  const handleSchedule = (medData: any) => {
+    const newMed: Medicine = {
+      id: Math.random().toString(36).substr(2, 9),
+      profileId: activeProfileId,
+      name: medData.name,
+      dosage: medData.dosage || '1 unit',
+      type: 'pill', // Default
+      frequency: medData.frequency || 'Daily',
+      times: medData.times || ['08:00'],
+      stock: medData.stock || 30, // Use if available
+      totalStock: medData.stock || 30,
+      startDate: new Date().toISOString().split('T')[0],
+      instructions: medData.instructions || 'Take as directed',
+      mealInstruction: 'after',
+      reminderTone: 'standard',
+      snoozeEnabled: true,
+      snoozeInterval: 10,
+      color: '#' + Math.floor(Math.random()*16777215).toString(16),
+      userId: user?.id || 'unknown',
+    };
+    
+    addMedicine(newMed);
+    toast.success(`${newMed.name} added to your schedule!`);
+  };
+
+  const renderMessageContent = (content: string) => {
+    const schedulerMatch = content.match(/\[SCHEDULER\](.*?)\[\/SCHEDULER\]/s);
+    if (!schedulerMatch) {
+      return content.split('\n').map((line, i) => <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>);
+    }
+
+    const mainContent = content.replace(schedulerMatch[0], '');
+    const medData = JSON.parse(schedulerMatch[1]);
+
+    return (
+      <>
+        {mainContent.split('\n').map((line, i) => <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>)}
+        <Button 
+          onClick={() => handleSchedule(medData)}
+          className="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold"
+        >
+          Schedule {medData.name}
+        </Button>
+      </>
+    );
+  };
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -209,9 +256,7 @@ I can help you add all of these to your schedule at once. Would you like to revi
                   ? "bg-indigo-600 text-white rounded-tr-none" 
                   : "bg-white text-slate-700 rounded-tl-none border border-slate-100"
               )}>
-                {msg.content.split('\n').map((line, i) => (
-                  <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>
-                ))}
+                {renderMessageContent(msg.content)}
               </div>
             </motion.div>
           ))}

@@ -1,7 +1,8 @@
 import { create } from 'zustand'; // I'll install zustand for easier state management
-import { Medicine, Reminder, User, ChatMessage, Profile, Task } from '../types';
+import { Medicine, Reminder, User, ChatMessage, Profile, Task, Settings } from '../types';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import { addDays, addWeeks, addMonths, format, parseISO } from 'date-fns';
 
 interface AppState {
   user: User | null;
@@ -10,6 +11,7 @@ interface AppState {
   medicines: Medicine[];
   reminders: Reminder[];
   tasks: Task[];
+  settings: Settings;
   isPremium: boolean;
   chatHistory: ChatMessage[];
   isAuthenticated: boolean;
@@ -31,11 +33,14 @@ interface AppState {
   addTask: (task: Task) => void;
   updateTaskStatus: (id: string, status: Task['status']) => void;
   deleteTask: (id: string) => void;
+  updateSettings: (settings: Partial<Settings>) => void;
   syncData: () => Promise<void>;
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChat: () => void;
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
+  addBalance: (amount: number) => void;
+  withdrawBalance: (amount: number) => boolean;
   updateStreak: () => void;
   incrementAiQuery: () => boolean;
   checkDailyLogin: () => void;
@@ -75,7 +80,38 @@ export const useStore = create<AppState>()(
       activeProfileId: 'profile-1',
       medicines: [],
       reminders: [],
-      tasks: [],
+      tasks: [
+        {
+          id: 'task-water-1',
+          profileId: 'profile-1',
+          title: 'Drink water',
+          description: 'Stay hydrated! Daily goal: 2L',
+          dueDate: '2026-04-27',
+          dueTime: '10:00',
+          status: 'pending',
+          userId: 'user-1'
+        }
+      ],
+      settings: {
+        notifications: {
+          enabled: true,
+          emailEnabled: true,
+          pushEnabled: true,
+          reminderSound: 'default',
+        },
+        security: {
+          biometricEnabled: false,
+          autoLock: false,
+          twoFactorEnabled: false,
+        },
+        darkMode: false,
+        language: 'en',
+        quietHours: {
+          enabled: false,
+          start: '22:00',
+          end: '07:00'
+        }
+      },
       isPremium: false,
       isAuthenticated: false,
       chatHistory: [
@@ -95,6 +131,7 @@ export const useStore = create<AppState>()(
           isPremium: false,
           tier: 'basic',
           coins: 100,
+          balance: 0,
           streak: 0,
           aiQueriesToday: 0,
           lastAiQueryDate: new Date().toISOString().split('T')[0],
@@ -105,7 +142,7 @@ export const useStore = create<AppState>()(
       logout: () => set({ user: null, isAuthenticated: false }),
 
       setUser: (user) => set({ user }),
-      
+
       setActiveProfile: (id) => set({ activeProfileId: id }),
 
       addProfile: (profile) => {
@@ -204,12 +241,47 @@ export const useStore = create<AppState>()(
         tasks: [...state.tasks, task]
       })),
 
-      updateTaskStatus: (id, status) => set((state) => ({
-        tasks: state.tasks.map((t) => t.id === id ? { ...t, status } : t)
-      })),
+      updateTaskStatus: (id, status) => set((state) => {
+        const task = state.tasks.find(t => t.id === id);
+        const updatedTasks = state.tasks.map((t) => t.id === id ? { ...t, status } : t);
+        
+        if (status === 'completed' && task && task.recurrence && task.recurrence !== 'none') {
+          const currentDate = parseISO(task.dueDate);
+          let nextDate: Date;
+          
+          switch (task.recurrence) {
+            case 'daily':
+              nextDate = addDays(currentDate, 1);
+              break;
+            case 'weekly':
+              nextDate = addWeeks(currentDate, 1);
+              break;
+            case 'monthly':
+              nextDate = addMonths(currentDate, 1);
+              break;
+            default:
+              nextDate = currentDate;
+          }
+          
+          const newTask: Task = {
+            ...task,
+            id: Math.random().toString(36).substr(2, 9),
+            dueDate: format(nextDate, 'yyyy-MM-dd'),
+            status: 'pending'
+          };
+          
+          return { tasks: [...updatedTasks, newTask] };
+        }
+        
+        return { tasks: updatedTasks };
+      }),
 
       deleteTask: (id) => set((state) => ({
         tasks: state.tasks.filter((t) => t.id !== id)
+      })),
+      
+      updateSettings: (newSettings) => set((state) => ({
+        settings: { ...state.settings, ...newSettings }
       })),
 
       syncData: async () => {
@@ -245,6 +317,19 @@ export const useStore = create<AppState>()(
         if (!user || user.coins < amount) return false;
         set((state) => ({
           user: state.user ? { ...state.user, coins: state.user.coins - amount } : null
+        }));
+        return true;
+      },
+      
+      addBalance: (amount) => set((state) => ({
+        user: state.user ? { ...state.user, balance: state.user.balance + amount } : null
+      })),
+      
+      withdrawBalance: (amount) => {
+        const { user } = get();
+        if (!user || user.balance < amount) return false;
+        set((state) => ({
+          user: state.user ? { ...state.user, balance: state.user.balance - amount } : null
         }));
         return true;
       },
@@ -336,6 +421,18 @@ export const useStore = create<AppState>()(
             } else if (med.frequency === 'Specific Days' && med.selectedDays) {
               const dayOfWeek = currentDate.getDay();
               if (med.selectedDays.includes(dayOfWeek)) {
+                shouldAdd = true;
+              }
+            } else if (med.frequency === 'Every X Days' && med.intervalDays) {
+              const startDate = new Date(med.startDate);
+              startDate.setHours(0, 0, 0, 0);
+              const checkDate = new Date(currentDate);
+              checkDate.setHours(0, 0, 0, 0);
+              
+              const diffTime = checkDate.getTime() - startDate.getTime();
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays >= 0 && diffDays % med.intervalDays === 0) {
                 shouldAdd = true;
               }
             }

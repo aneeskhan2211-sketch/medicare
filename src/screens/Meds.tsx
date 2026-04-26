@@ -125,7 +125,12 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-bold text-slate-900 text-xl group-hover:text-primary transition-colors">{med.name}</h4>
+                            <h4 className="font-bold text-slate-900 text-xl group-hover:text-primary transition-colors flex items-center gap-2">
+                                <span className="text-slate-400 group-hover:text-primary transition-colors">
+                                  {React.cloneElement(getMedIcon(med.type), { size: 18 })}
+                                </span>
+                                {med.name}
+                            </h4>
                             <p className="text-sm text-slate-500 font-bold mt-0.5">{med.dosage}</p>
                           </div>
                           <div className="flex flex-col items-end gap-2">

@@ -31,6 +31,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
   const [type, setType] = useState<MedicineType>('pill');
   const [times, setTimes] = useState<string[]>(['08:00']);
   const [frequency, setFrequency] = useState('Daily');
+  const [intervalDays, setIntervalDays] = useState('2');
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 0]);
   const [instructions, setInstructions] = useState('');
   const [mealInstruction, setMealInstruction] = useState<Medicine['mealInstruction']>('after');
@@ -134,6 +135,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
       dosage,
       type,
       frequency,
+      intervalDays: frequency === 'Every X Days' ? parseInt(intervalDays) : undefined,
       selectedDays: frequency === 'Specific Days' ? selectedDays : undefined,
       times,
       stock: parseInt(stock) || 0,
@@ -223,29 +225,36 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
           </div>
 
           {/* Image Upload */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Medicine Image</label>
-            <div 
-              onClick={() => medImageInputRef.current?.click()}
-              className="w-full aspect-video bg-white rounded-[32px] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative group"
-            >
-              {medImage ? (
-                <>
-                  <img src={medImage} alt="Medicine" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="text-white" size={32} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                    <Camera size={24} />
-                  </div>
-                  <p className="text-xs font-bold text-slate-400">Upload medicine photo</p>
-                </>
-              )}
-              <input ref={medImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleMedImageSelect} />
-            </div>
+            {medImage ? (
+              <div className="relative w-full aspect-video rounded-[32px] overflow-hidden border-2 border-slate-200 shadow-md">
+                <img src={medImage} alt="Medicine" className="w-full h-full object-cover" />
+                
+                {/* Fixed position Remove button for easier clicking */}
+                <button 
+                  className="absolute top-4 right-4 bg-red-500 text-white p-3 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMedImage(null);
+                  }}
+                  aria-label="Remove image"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            ) : (
+              <Button 
+                onClick={() => medImageInputRef.current?.click()}
+                className="w-full h-32 flex flex-col items-center justify-center gap-3 rounded-[32px] border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 hover:border-primary/50 hover:bg-indigo-50/50 transition-all font-bold"
+              >
+                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border border-slate-100">
+                  <Camera size={24} />
+                </div>
+                Click to upload medicine photo
+              </Button>
+            )}
+            <input ref={medImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleMedImageSelect} />
           </div>
 
           {/* Basic Info */}
@@ -334,11 +343,40 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   <option value="Three Times Daily">Three Times Daily</option>
                   <option value="Weekly">Weekly</option>
                   <option value="Specific Days">Specific Days</option>
+                  <option value="Every X Days">Every X Days</option>
                 </select>
               </div>
 
+              {frequency === 'Every X Days' && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3"
+                >
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Repeat every</label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="number" 
+                      value={intervalDays}
+                      onChange={(e) => setIntervalDays(e.target.value)}
+                      className="w-24 bg-white border-none card-shadow rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none transition-all font-medium"
+                      min="1"
+                    />
+                    <span className="text-sm font-bold text-slate-600">Days</span>
+                  </div>
+                </motion.div>
+              )}
+
               <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Reminder Times</label>
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Reminder Times</label>
+                  <button 
+                    onClick={() => setShowSmartSchedule(true)}
+                    className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg transition-all"
+                  >
+                    <Sparkles size={12} /> Auto-suggest
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {times.map((time, idx) => (
                     <motion.div 
@@ -465,7 +503,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
         </div>
       </ScrollArea>
 
-      <div className="p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 sticky bottom-0 z-30">
+      <div className="p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 sticky bottom-20 z-30">
         <Button 
           onClick={handleAdd}
           className="w-full h-16 rounded-[24px] text-lg font-bold shadow-xl shadow-primary/30 premium-shadow"

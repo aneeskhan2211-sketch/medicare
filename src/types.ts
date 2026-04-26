@@ -49,6 +49,7 @@ export interface Medicine {
   dosage: string;
   type: MedicineType;
   frequency: string;
+  intervalDays?: number; // For "Every X Days"
   selectedDays?: number[];
   times: string[]; // e.g., ["08:00", "20:00"]
   stock: number;
@@ -85,6 +86,7 @@ export interface User {
   tier: SubscriptionTier;
   avatar?: string;
   coins: number;
+  balance: number;
   streak: number;
   lastLogin?: string;
   aiQueriesToday: number;
@@ -97,6 +99,8 @@ export interface AuthState {
   error: string | null;
 }
 
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly';
+
 export interface Task {
   id: string;
   profileId: string;
@@ -106,10 +110,32 @@ export interface Task {
   dueTime: string; // HH:mm
   status: 'pending' | 'completed';
   userId: string;
+  recurrence?: RecurrenceType;
 }
 
 export interface AdherenceData {
   date: string;
   taken: number;
   total: number;
+}
+
+export interface Settings {
+  notifications: {
+    enabled: boolean;
+    emailEnabled: boolean;
+    pushEnabled: boolean;
+    reminderSound: string;
+  };
+  security: {
+    biometricEnabled: boolean;
+    autoLock: boolean;
+    twoFactorEnabled: boolean;
+  };
+  darkMode: boolean;
+  language: string;
+  quietHours: {
+    enabled: boolean;
+    start: string;
+    end: string;
+  };
 }

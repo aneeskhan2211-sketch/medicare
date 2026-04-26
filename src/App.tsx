@@ -14,6 +14,8 @@ import { MedDetail } from './screens/MedDetail';
 import { AIAssistant } from './screens/AIAssistant';
 import { ReviewScan } from './components/ReviewScan';
 import { RefillDialog } from './screens/RefillDialog';
+import { Wallet } from './screens/Wallet';
+import { Marketplace } from './screens/Marketplace';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStore } from './store/useStore';
@@ -29,10 +31,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
+  const [showMarketplace, setShowMarketplace] = useState(false);
   const [showBranding, setShowBranding] = useState(false);
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(null);
   const [refillMed, setRefillMed] = useState<Medicine | null>(null);
   const [activeReminder, setActiveReminder] = useState<Reminder | null>(null);
+  const [animatingReminderId, setAnimatingReminderId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [autoOpenScanner, setAutoOpenScanner] = useState(false);
   const [scannerSource, setScannerSource] = useState<'camera' | 'gallery' | undefined>(undefined);
@@ -106,6 +111,7 @@ export default function App() {
         <Home 
           onOpenAI={() => setShowAI(true)} 
           onRefillMed={(med) => setRefillMed(med)} 
+          onShowMarketplace={() => setShowMarketplace(true)}
           onScanComplete={(meds) => {
             setScannedMeds(meds);
             if (meds.length === 1) {
@@ -133,32 +139,43 @@ export default function App() {
       case 'calendar': return <CalendarView />;
       case 'analytics': return <Analytics />;
       case 'tasks': return <Tasks />;
-      case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} />;
+      case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} onShowWallet={() => setShowWallet(true)} />;
       default: return <Home />;
     }
   };
 
   const handleReminderAction = (status: 'taken' | 'missed') => {
     if (activeReminder) {
-      updateReminderStatus(activeReminder.id, status);
-      setActiveReminder(null);
-      if (status === 'taken') {
-        toast.success('Dose recorded! +10 Coins earned.', {
-          icon: <div className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] font-bold text-white">C</div>
-        });
+      // Play sound
+      const audio = new Audio(status === 'taken' ? '/sounds/success.mp3' : '/sounds/error.mp3');
+      audio.play().catch(() => {}); // Silent fail if asset missing or autoplay blocked
 
-        // Check for low stock after taking dose
-        const med = medicines.find(m => m.id === activeReminder.medicineId);
-        if (med && med.stock <= 5) {
-          toast.warning(`Low stock: ${med.name}`, {
-            description: `Only ${med.stock - 1} doses left. Tap to refill.`,
-            action: {
-              label: 'Refill',
-              onClick: () => setRefillMed(med)
-            }
+      // Trigger animation
+      setAnimatingReminderId(activeReminder.id);
+
+      setTimeout(() => {
+        updateReminderStatus(activeReminder.id, status);
+        setActiveReminder(null);
+        setAnimatingReminderId(null);
+        
+        if (status === 'taken') {
+          toast.success('Dose recorded! +10 Coins earned.', {
+            icon: <div className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] font-bold text-white">C</div>
           });
+
+          // Check for low stock after taking dose
+          const med = medicines.find(m => m.id === activeReminder.medicineId);
+          if (med && med.stock <= 5) {
+            toast.warning(`Low stock: ${med.name}`, {
+              description: `Only ${med.stock - 1} doses left. Tap to refill.`,
+              action: {
+                label: 'Refill',
+                onClick: () => setRefillMed(med)
+              }
+            });
+          }
         }
-      }
+      }, 500); // Wait for animation
     }
   };
 
@@ -204,14 +221,18 @@ export default function App() {
         </motion.div>
       </AnimatePresence>
 
-      {activeTab !== 'add' && <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />}
+      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
       
       {/* Smart Reminder Popup */}
       <AnimatePresence>
         {activeReminder && (
           <motion.div 
             initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              scale: animatingReminderId === activeReminder.id ? 0.95 : 1,
+            }}
             exit={{ opacity: 0, y: 100 }}
             className="fixed inset-x-0 bottom-24 z-[60] px-4 pointer-events-none"
           >
@@ -309,6 +330,18 @@ export default function App() {
       <Drawer open={showBranding} onOpenChange={setShowBranding}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
           <Branding onClose={() => setShowBranding(false)} />
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={showWallet} onOpenChange={setShowWallet}>
+        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <Wallet onClose={() => setShowWallet(false)} />
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={showMarketplace} onOpenChange={setShowMarketplace}>
+        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <Marketplace onClose={() => setShowMarketplace(false)} />
         </DrawerContent>
       </Drawer>
 

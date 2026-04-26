@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { format, differenceInMinutes, parseISO, isAfter } from 'date-fns';
-import { Check, Clock, AlertCircle, ChevronRight, Sparkles, Flame, Camera, Upload, MessageSquare, Plus, Bell, Activity } from 'lucide-react';
+import { Check, Clock, AlertCircle, ChevronRight, Sparkles, Flame, Camera, Upload, MessageSquare, Plus, Bell, Activity, ShoppingCart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Medicine, Reminder } from '../types';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
+import { HealthTips } from '../components/HealthTips';
 import { extractMedicineInfo } from '../services/aiService';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,9 +19,10 @@ interface HomeProps {
   onOpenAI: () => void;
   onRefillMed: (med: Medicine) => void;
   onScanComplete: (info: any[]) => void;
+  onShowMarketplace: () => void;
 }
 
-export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplete }) => {
+export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplete, onShowMarketplace }) => {
   const { medicines, reminders, updateReminderStatus, user, activeProfileId, profiles, checkDailyLogin, tasks, updateTaskStatus } = useStore();
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
@@ -138,59 +140,61 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
             </div>
           </motion.header>
 
-        {/* Daily Progress Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="border-none bg-gradient-to-br from-primary to-secondary text-white premium-shadow overflow-hidden relative rounded-[20px]">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-400/20 rounded-full -ml-20 -mb-20 blur-3xl" />
-            
-            <CardContent className="p-6 relative z-10">
-              <div className="flex justify-between items-center mb-6">
-                <div className="space-y-1">
-                  <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest">Daily Adherence</p>
-                  <h2 className="text-3xl font-bold">{Math.round(progress)}%</h2>
+        {/* Adherence Summary Section */}
+        <section className="space-y-4">
+          <h3 className="font-display font-bold text-slate-900 px-1">Adherence Summary</h3>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="border-none bg-gradient-to-br from-primary to-secondary text-white premium-shadow overflow-hidden relative rounded-[32px]">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-400/20 rounded-full -ml-20 -mb-20 blur-3xl" />
+              
+              <CardContent className="p-6 relative z-10 flex items-center justify-between gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest">Daily Progress</p>
+                    <p className="text-indigo-50 text-sm font-medium">{takenCount} of {totalCount} doses taken</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-md rounded-full px-4 py-2 inline-flex items-center gap-2">
+                    <p className="text-sm font-medium text-white">{getMotivationalMessage()}</p>
+                  </div>
                 </div>
-                <div className="w-16 h-16 rounded-full border-4 border-white/20 flex items-center justify-center relative">
+
+                <div className="w-24 h-24 rounded-full border-4 border-white/20 flex items-center justify-center relative shrink-0">
                   <svg className="w-full h-full -rotate-90 transform">
                     <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
+                      cx="48"
+                      cy="48"
+                      r="40"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth="8"
                       fill="transparent"
                       className="text-white/20"
                     />
                     <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
+                      cx="48"
+                      cy="48"
+                      r="40"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth="8"
                       fill="transparent"
-                      strokeDasharray={175.9}
-                      strokeDashoffset={175.9 - (175.9 * progress) / 100}
+                      strokeDasharray={251.3}
+                      strokeDashoffset={251.3 - (251.3 * progress) / 100}
                       className="text-white transition-all duration-1000 ease-out"
+                      strokeLinecap="round"
                     />
                   </svg>
-                  <Check className="absolute text-white" size={20} />
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-2xl font-bold">{Math.round(progress)}%</span>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="text-indigo-100">{takenCount} of {totalCount} doses taken</span>
-                  <span className="text-white">{getMotivationalMessage()}</span>
-                </div>
-                <Progress value={progress} className="h-2 bg-white/20" />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </section>
 
         {/* Next Dose Countdown */}
         <AnimatePresence>
@@ -234,6 +238,7 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
           <div className="grid grid-cols-3 gap-4">
             {[
               { icon: MessageSquare, label: 'Ask AI', color: 'bg-indigo-50 text-indigo-600', onClick: onOpenAI },
+              { icon: ShoppingCart, label: 'Market', color: 'bg-indigo-50 text-indigo-600', onClick: onShowMarketplace },
               { icon: Camera, label: 'Scan', color: 'bg-emerald-50 text-emerald-600', onClick: () => cameraInputRef.current?.click() },
               { icon: Upload, label: 'Gallery', color: 'bg-amber-50 text-amber-600', onClick: () => galleryInputRef.current?.click() }
             ].map((action, i) => (
@@ -290,6 +295,9 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
             </div>
           </section>
         )}
+
+        {/* Health Tips */}
+        <HealthTips />
 
         {/* Today's Schedule */}
         <section className="space-y-4">

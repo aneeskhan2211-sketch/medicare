@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CheckCircle2, Circle, Clock, Plus, Trash2, X, Calendar as CalendarIcon } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Plus, Trash2, X, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { Task } from '../types';
+import { Task, RecurrenceType } from '../types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -17,6 +17,7 @@ export const Tasks: React.FC = () => {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [time, setTime] = useState('09:00');
+  const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
 
   const profileTasks = tasks.filter(t => t.profileId === activeProfileId);
 
@@ -33,11 +34,13 @@ export const Tasks: React.FC = () => {
       dueDate: date,
       dueTime: time,
       status: 'pending',
+      recurrence,
       userId: 'user-1'
     };
 
     addTask(newTask);
     setTitle('');
+    setRecurrence('none');
     setShowAdd(false);
     toast.success('Task added successfully');
   };
@@ -81,22 +84,62 @@ export const Tasks: React.FC = () => {
                   task.status === 'completed' ? "bg-slate-50/50 opacity-60" : "bg-white"
                 )}>
                   <CardContent className="p-4 flex items-center gap-4">
-                    <button 
-                      onClick={() => updateTaskStatus(task.id, task.status === 'pending' ? 'completed' : 'pending')}
+                    <motion.button 
+                      whileTap={{ scale: 0.8 }}
+                      whileHover={{ scale: 1.1 }}
+                      onClick={() => {
+                        const isCompleting = task.status === 'pending';
+                        updateTaskStatus(task.id, isCompleting ? 'completed' : 'pending');
+                        if (isCompleting) {
+                          toast.success('Task marked as completed! 🎉', {
+                            description: task.recurrence && task.recurrence !== 'none' ? `Next ${task.recurrence} task created.` : undefined
+                          });
+                        }
+                      }}
                       className={cn(
-                        "transition-colors",
+                        "transition-colors relative flex items-center justify-center w-8 h-8",
                         task.status === 'completed' ? "text-green-500" : "text-slate-300 hover:text-primary"
                       )}
                     >
-                      {task.status === 'completed' ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                    </button>
-                    <div className="flex-1">
-                      <h4 className={cn(
-                        "font-bold text-slate-900",
-                        task.status === 'completed' && "line-through text-slate-400"
-                      )}>
-                        {task.title}
-                      </h4>
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={task.status}
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.5, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                        >
+                          {task.status === 'completed' ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                        </motion.div>
+                      </AnimatePresence>
+                      {task.status === 'completed' && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1.5, opacity: 0 }}
+                          transition={{ duration: 0.5 }}
+                          className="absolute inset-0 rounded-full bg-green-500/20"
+                        />
+                      )}
+                    </motion.button>
+                    <div className="flex-1 min-w-0">
+                      <div className="relative inline-block max-w-full">
+                        <h4 className={cn(
+                          "font-bold text-slate-900 transition-colors duration-500 truncate",
+                          task.status === 'completed' && "text-slate-400"
+                        )}>
+                          {task.title}
+                        </h4>
+                        <AnimatePresence>
+                          {task.status === 'completed' && (
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: "100%" }}
+                              exit={{ width: 0 }}
+                              className="absolute left-0 top-1/2 h-[2px] bg-slate-300 -translate-y-1/2"
+                            />
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
                           <CalendarIcon size={12} />
@@ -106,6 +149,12 @@ export const Tasks: React.FC = () => {
                           <Clock size={12} />
                           {task.dueTime}
                         </div>
+                        {task.recurrence && task.recurrence !== 'none' && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-primary uppercase">
+                            <Repeat size={12} />
+                            {task.recurrence}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button 
@@ -168,6 +217,26 @@ export const Tasks: React.FC = () => {
                       onChange={(e) => setTime(e.target.value)}
                       className="rounded-xl border-slate-100 h-12"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recurrence</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['none', 'daily', 'weekly', 'monthly'] as RecurrenceType[]).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setRecurrence(type)}
+                        className={cn(
+                          "py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all border",
+                          recurrence === type 
+                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                            : "bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-200"
+                        )}
+                      >
+                        {type}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

@@ -23,6 +23,8 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
   const [editedDosage, setEditedDosage] = useState(medicine.dosage);
   const [editedTimes, setEditedTimes] = useState([...medicine.times]);
   const [editedInstructions, setEditedInstructions] = useState(medicine.instructions || '');
+  const [editedFrequency, setEditedFrequency] = useState(medicine.frequency);
+  const [editedIntervalDays, setEditedIntervalDays] = useState(medicine.intervalDays?.toString() || '2');
   const [editedReminderTone, setEditedReminderTone] = useState(medicine.reminderTone || 'standard');
   const [editedExpiryDate, setEditedExpiryDate] = useState(medicine.expiryDate ? format(new Date(medicine.expiryDate), 'yyyy-MM-dd') : '');
   
@@ -41,6 +43,8 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
     updateMedicine(medicine.id, {
       dosage: editedDosage,
       times: editedTimes,
+      frequency: editedFrequency,
+      intervalDays: editedFrequency === 'Every X Days' ? parseInt(editedIntervalDays) : undefined,
       instructions: editedInstructions,
       reminderTone: editedReminderTone,
       expiryDate: editedExpiryDate ? new Date(editedExpiryDate).toISOString() : undefined
@@ -123,7 +127,10 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                 <Card className="border-none bg-slate-50 card-shadow">
                   <CardContent className="p-4 space-y-1">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Frequency</p>
-                    <p className="font-semibold text-slate-700">{medicine.frequency}</p>
+                    <p className="font-semibold text-slate-700">
+                      {medicine.frequency}
+                      {medicine.frequency === 'Every X Days' && ` (Every ${medicine.intervalDays} days)`}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="border-none bg-slate-50 card-shadow">
@@ -165,6 +172,93 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   className="rounded-xl border-slate-200"
                 />
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frequency</label>
+                <select 
+                  value={editedFrequency}
+                  onChange={(e) => setEditedFrequency(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all appearance-none"
+                >
+                  <option value="Daily">Daily</option>
+                  <option value="Twice Daily">Twice Daily</option>
+                  <option value="Three Times Daily">Three Times Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Specific Days">Specific Days</option>
+                  <option value="Every X Days">Every X Days</option>
+                </select>
+              </div>
+
+              {editedFrequency === 'Every X Days' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Repeat every (Days)</label>
+                  <Input 
+                    type="number"
+                    value={editedIntervalDays}
+                    onChange={(e) => setEditedIntervalDays(e.target.value)}
+                    className="rounded-xl border-slate-200"
+                    min="1"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frequency</label>
+                <select 
+                  value={editedFrequency}
+                  onChange={(e) => setEditedFrequency(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all appearance-none"
+                >
+                  <option value="Daily">Daily</option>
+                  <option value="Twice Daily">Twice Daily</option>
+                  <option value="Three Times Daily">Three Times Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Specific Days">Specific Days</option>
+                  <option value="Every X Days">Every X Days</option>
+                </select>
+              </div>
+
+              {editedFrequency === 'Every X Days' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Repeat every (Days)</label>
+                  <Input 
+                    type="number"
+                    value={editedIntervalDays}
+                    onChange={(e) => setEditedIntervalDays(e.target.value)}
+                    className="rounded-xl border-slate-200"
+                    min="1"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frequency</label>
+                <select 
+                  value={editedFrequency}
+                  onChange={(e) => setEditedFrequency(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all appearance-none"
+                >
+                  <option value="Daily">Daily</option>
+                  <option value="Twice Daily">Twice Daily</option>
+                  <option value="Three Times Daily">Three Times Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Specific Days">Specific Days</option>
+                  <option value="Every X Days">Every X Days</option>
+                </select>
+              </div>
+
+              {editedFrequency === 'Every X Days' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Repeat every (Days)</label>
+                  <Input 
+                    type="number"
+                    value={editedIntervalDays}
+                    onChange={(e) => setEditedIntervalDays(e.target.value)}
+                    className="rounded-xl border-slate-200"
+                    min="1"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reminder Tone</label>
                 <select 
@@ -226,25 +320,35 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
             )}
           </section>
 
-          {/* Notes */}
+          {/* Intake Guidelines */}
           <section className="space-y-3">
             <h3 className="font-display font-semibold text-lg flex items-center gap-2">
               <Info size={18} className="text-primary" />
-              Instructions
+              Intake Guidelines
             </h3>
             {!isEditing ? (
-              <Card className="border-none bg-indigo-50/50 p-4 rounded-2xl">
+              <Card className="border-none bg-indigo-50/50 p-4 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <span className="font-bold text-slate-500 uppercase text-[10px]">Meal Instructions:</span>
+                  <span className="capitalize">{medicine.mealInstruction || "Not specified"}</span>
+                </div>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  {medicine.instructions || "Take with a full glass of water. Can be taken with or without food as directed by your physician."}
+                  {medicine.instructions || "No specific instructions provided."}
                 </p>
               </Card>
             ) : (
-              <Textarea 
-                value={editedInstructions}
-                onChange={(e) => setEditedInstructions(e.target.value)}
-                placeholder="e.g. Take with food, avoid alcohol..."
-                className="rounded-2xl border-slate-200 min-h-[100px]"
-              />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-700">
+                    <span className="font-bold text-slate-500 uppercase text-[10px]">Meal Instructions:</span>
+                    <span className="capitalize">{medicine.mealInstruction || "Not specified"}</span>
+                  </div>
+                  <Textarea 
+                    value={editedInstructions}
+                    onChange={(e) => setEditedInstructions(e.target.value)}
+                    placeholder="e.g. Take with food, avoid alcohol..."
+                    className="rounded-2xl border-slate-200 min-h-[100px]"
+                  />
+                </div>
             )}
           </section>
 

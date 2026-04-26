@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { User, Settings, Shield, Users, BarChart3, FileText, LogOut, Crown, ChevronRight, Cloud, Flame, Bell, Phone, Plus, UserPlus, Heart, Activity, CreditCard, HelpCircle } from 'lucide-react';
+import { User, Settings, Shield, Users, BarChart3, FileText, LogOut, Crown, ChevronRight, Cloud, Flame, Bell, Phone, Plus, UserPlus, Heart, Activity, CreditCard, HelpCircle, Wallet as WalletIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,16 +10,18 @@ import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SettingsDialog } from './SettingsDialog';
 
 interface ProfileProps {
   onShowPaywall: () => void;
   onShowBranding: () => void;
+  onShowWallet: () => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding }) => {
-  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile } = useStore();
+export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding, onShowWallet }) => {
+  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile, addCoins } = useStore();
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
-  const [darkMode, setDarkMode] = React.useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleSync = async () => {
     if (!isPremium) {
@@ -29,11 +31,27 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding 
     await syncData();
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    toast.info(`${!darkMode ? 'Dark' : 'Light'} mode enabled`, {
-      description: 'Theme settings updated successfully.'
-    });
+  const handleReferral = async () => {
+    const referralLink = "https://medimind.app/invite?ref=" + user?.id;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join MediMind',
+          text: 'Get Rs 100 worth of bonus coins in MediMind! Join me.',
+          url: referralLink,
+        });
+        addCoins(100);
+        toast.success('Referral shared! You earned 100 coins!');
+      } catch (err) {
+        console.error('Error sharing:', err);
+        toast.error('Failed to share.');
+      }
+    } else {
+      // Fallback
+      toast.info('Referral link: ' + referralLink);
+      addCoins(100);
+      toast.success('Referral shared! You earned 100 coins!');
+    }
   };
 
   return (
@@ -50,6 +68,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding 
         <h1 className="text-2xl font-display font-bold text-slate-900">Profile</h1>
         <motion.button 
           whileTap={{ scale: 0.9 }}
+          onClick={() => setShowSettings(true)}
           className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400"
         >
           <Settings size={20} />
@@ -199,34 +218,18 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding 
           <section className="space-y-4">
             <h3 className="font-display font-bold text-lg text-slate-900 px-1">Settings</h3>
             <div className="bg-white rounded-[20px] card-shadow overflow-hidden border border-slate-50">
-              <div className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all group border-b border-slate-50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-[18px] bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
-                    <Activity size={22} />
-                  </div>
-                  <span className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Dark Mode</span>
-                </div>
-                <button 
-                  onClick={toggleDarkMode}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all relative",
-                    darkMode ? "bg-primary" : "bg-slate-200"
-                  )}
-                >
-                  <motion.div 
-                    animate={{ x: darkMode ? 26 : 2 }}
-                    className="w-5 h-5 bg-white rounded-full absolute top-0.5" 
-                  />
-                </button>
-              </div>
-              <MenuButton icon={Bell} label="Notifications" onClick={() => toast.info('Notifications coming soon!')} />
-              <MenuButton icon={Shield} label="Privacy & Security" onClick={() => toast.info('Privacy settings coming soon!')} />
+              <MenuButton icon={Settings} label="General Settings" onClick={() => setShowSettings(true)} />
+              <MenuButton icon={WalletIcon} label="My Wallet" onClick={onShowWallet} />
+              <MenuButton icon={UserPlus} label="Refer friends & get Rs 100" onClick={handleReferral} />
+              <MenuButton icon={Bell} label="Notifications" onClick={() => setShowSettings(true)} />
+              <MenuButton icon={Shield} label="Privacy & Security" onClick={() => setShowSettings(true)} />
               <MenuButton icon={Cloud} label="Data & Sync" onClick={handleSync} />
               <MenuButton icon={CreditCard} label="Subscription" badge={!isPremium ? "FREE" : "PRO"} onClick={onShowPaywall} />
-              <MenuButton icon={Heart} label="Health Connect" badge="BETA" onClick={() => toast.info('Health Connect coming soon!')} />
               <MenuButton icon={HelpCircle} label="Help & Support" onClick={() => toast.info('Help & Support coming soon!')} />
             </div>
           </section>
+
+          <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
 
           <Button 
             variant="ghost" 

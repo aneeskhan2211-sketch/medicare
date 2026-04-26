@@ -20,7 +20,7 @@ export const CalendarView: React.FC = () => {
   const selectedReminders = reminders.filter(r => r.date === format(selectedDate, 'yyyy-MM-dd'));
 
   return (
-    <div className="p-6 space-y-6 h-full flex flex-col">
+    <div className="p-6 pb-32 space-y-6 h-full flex flex-col">
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900">Tracking</h1>
