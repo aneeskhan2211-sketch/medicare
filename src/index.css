@@ -4,34 +4,34 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
   
-  --color-primary: #5B3DF5;
+  --color-primary: #0f766e;
   --color-primary-foreground: #ffffff;
   
-  --color-secondary: #7C67FF;
+  --color-secondary: #0d9488;
   --color-secondary-foreground: #ffffff;
   
   --color-success: #22C55E;
-  --color-warning: #F97316;
+  --color-warning: #F59E0B;
   --color-danger: #EF4444;
   
-  --color-muted: #f1f5f9;
+  --color-muted: #f8fafc;
   --color-muted-foreground: #64748b;
   
   --color-card: #ffffff;
   --color-card-foreground: #0f172a;
   
-  --radius-xl: 1.5rem; /* 24px */
-  --radius-2xl: 1.75rem;
-  --radius-3xl: 2rem;
+  --radius-xl: 1rem; /* 16px */
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 
 :root {
-  --background: linear-gradient(180deg, #F7F8FC 0%, #EEF2FF 100%);
+  --background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
   --foreground: #0f172a;
-  --soft-shadow: 0px 8px 24px rgba(0,0,0,0.06);
-  --premium-shadow: 0 20px 40px -10px rgba(91, 61, 245, 0.2);
+  --soft-shadow: 0px 4px 12px rgba(0,0,0,0.05);
+  --premium-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.15);
 }
 
 body {
@@ -77,7 +77,7 @@ h1, h2, h3, h4 {
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
 }
 

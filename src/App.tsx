@@ -16,11 +16,12 @@ import { ReviewScan } from './components/ReviewScan';
 import { RefillDialog } from './screens/RefillDialog';
 import { Wallet } from './screens/Wallet';
 import { Marketplace } from './screens/Marketplace';
+import { AIDoctor } from './screens/AIDoctor';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStore } from './store/useStore';
 import { Medicine, Reminder, Task } from './types';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { format } from 'date-fns';
 import { AlertCircle, Bell, Check, Clock, X, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export default function App() {
   const [showAI, setShowAI] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showAIDoctor, setShowAIDoctor] = useState(false);
   const [showBranding, setShowBranding] = useState(false);
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(null);
   const [refillMed, setRefillMed] = useState<Medicine | null>(null);
@@ -112,6 +114,7 @@ export default function App() {
           onOpenAI={() => setShowAI(true)} 
           onRefillMed={(med) => setRefillMed(med)} 
           onShowMarketplace={() => setShowMarketplace(true)}
+          onShowAIDoctor={() => setShowAIDoctor(true)}
           onScanComplete={(meds) => {
             setScannedMeds(meds);
             if (meds.length === 1) {
@@ -293,6 +296,9 @@ export default function App() {
 
       <Drawer open={!!selectedMed} onOpenChange={(open) => !open && setSelectedMed(null)}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Medicine Detail</DrawerTitle>
+          </DrawerHeader>
           {selectedMed && (
             <MedDetail medicine={selectedMed} onClose={() => setSelectedMed(null)} />
           )}
@@ -301,6 +307,9 @@ export default function App() {
 
       <Drawer open={showAI} onOpenChange={setShowAI}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>AI Assistant</DrawerTitle>
+          </DrawerHeader>
           <AIAssistant 
             onClose={() => setShowAI(false)} 
             contextMedicine={selectedMed} 
@@ -335,13 +344,28 @@ export default function App() {
 
       <Drawer open={showWallet} onOpenChange={setShowWallet}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Wallet</DrawerTitle>
+          </DrawerHeader>
           <Wallet onClose={() => setShowWallet(false)} />
         </DrawerContent>
       </Drawer>
 
       <Drawer open={showMarketplace} onOpenChange={setShowMarketplace}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Marketplace</DrawerTitle>
+          </DrawerHeader>
           <Marketplace onClose={() => setShowMarketplace(false)} />
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={showAIDoctor} onOpenChange={setShowAIDoctor}>
+        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>AI Doctor</DrawerTitle>
+          </DrawerHeader>
+          <AIDoctor onClose={() => setShowAIDoctor(false)} />
         </DrawerContent>
       </Drawer>
 

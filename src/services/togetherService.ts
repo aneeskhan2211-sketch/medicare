@@ -1,7 +1,21 @@
 
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
-
 export const callTogetherAI = async (messages: { role: string; content: string | any[] }[], model: string = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo") => {
+  if (typeof window !== 'undefined') {
+    // Client-side: call /api/ai/call
+    const response = await fetch("/api/ai/call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, model }),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to get AI response");
+    }
+    const data = await response.json();
+    return data.response;
+  }
+
+  // Server-side: call Together AI
+  const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
   if (!TOGETHER_API_KEY) {
     throw new Error("TOGETHER_API_KEY is not set");
   }

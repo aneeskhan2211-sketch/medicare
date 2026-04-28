@@ -20,9 +20,10 @@ interface HomeProps {
   onRefillMed: (med: Medicine) => void;
   onScanComplete: (info: any[]) => void;
   onShowMarketplace: () => void;
+  onShowAIDoctor: () => void;
 }
 
-export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplete, onShowMarketplace }) => {
+export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplete, onShowMarketplace, onShowAIDoctor }) => {
   const { medicines, reminders, updateReminderStatus, user, activeProfileId, profiles, checkDailyLogin, tasks, updateTaskStatus } = useStore();
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
@@ -163,32 +164,32 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
                   </div>
                 </div>
 
-                <div className="w-24 h-24 rounded-full border-4 border-white/20 flex items-center justify-center relative shrink-0">
+                <div className="w-32 h-32 rounded-full border-4 border-white/20 flex items-center justify-center relative shrink-0">
                   <svg className="w-full h-full -rotate-90 transform">
                     <circle
-                      cx="48"
-                      cy="48"
-                      r="40"
+                      cx="64"
+                      cy="64"
+                      r="52"
                       stroke="currentColor"
                       strokeWidth="8"
                       fill="transparent"
                       className="text-white/20"
                     />
                     <circle
-                      cx="48"
-                      cy="48"
-                      r="40"
+                      cx="64"
+                      cy="64"
+                      r="52"
                       stroke="currentColor"
                       strokeWidth="8"
                       fill="transparent"
-                      strokeDasharray={251.3}
-                      strokeDashoffset={251.3 - (251.3 * progress) / 100}
+                      strokeDasharray={326.7}
+                      strokeDashoffset={326.7 - (326.7 * progress) / 100}
                       className="text-white transition-all duration-1000 ease-out"
                       strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="text-2xl font-bold">{Math.round(progress)}%</span>
+                    <span className="text-4xl font-bold">{Math.round(progress)}%</span>
                   </div>
                 </div>
               </CardContent>
@@ -238,6 +239,7 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
           <div className="grid grid-cols-3 gap-4">
             {[
               { icon: MessageSquare, label: 'Ask AI', color: 'bg-indigo-50 text-indigo-600', onClick: onOpenAI },
+              { icon: Sparkles, label: 'AI Doctor', color: 'bg-emerald-50 text-emerald-600', onClick: onShowAIDoctor },
               { icon: ShoppingCart, label: 'Market', color: 'bg-indigo-50 text-indigo-600', onClick: onShowMarketplace },
               { icon: Camera, label: 'Scan', color: 'bg-emerald-50 text-emerald-600', onClick: () => cameraInputRef.current?.click() },
               { icon: Upload, label: 'Gallery', color: 'bg-amber-50 text-amber-600', onClick: () => galleryInputRef.current?.click() }
@@ -362,8 +364,8 @@ export const Home: React.FC<HomeProps> = ({ onOpenAI, onRefillMed, onScanComplet
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <p className="text-xs text-slate-500 font-medium">{med.dosage}</p>
-                            <Badge variant="outline" className="text-[8px] h-4 px-1 border-slate-200 text-slate-400 uppercase font-bold">
-                              {med.instructions || 'With Water'}
+                            <Badge variant="outline" className={cn("text-[8px] h-4 px-1 border-slate-200 text-slate-400 uppercase font-bold", reminder.status === 'taken' ? 'bg-green-50 text-green-600' : reminder.status === 'missed' ? 'bg-red-50 text-red-500 border-red-200' : '')}>
+                              {reminder.status === 'taken' ? 'Get well soon! 😊' : reminder.status === 'missed' ? 'Missed 😞' : med.instructions || 'With Water'}
                             </Badge>
                           </div>
                         </div>

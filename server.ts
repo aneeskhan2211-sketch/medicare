@@ -62,6 +62,19 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // AI Call Route
+  app.post("/api/ai/call", async (req, res) => {
+    const { messages, model } = req.body;
+    try {
+      const { callTogetherAI } = await import("./src/services/togetherService.js");
+      const response = await callTogetherAI(messages, model);
+      res.json({ response });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to get AI response" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

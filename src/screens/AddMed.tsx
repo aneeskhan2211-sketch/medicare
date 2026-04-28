@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-import { Medicine, MedicineType } from '../types';
-import { extractMedicineInfo, getMedicineRecommendations } from '../services/aiService';
+import { Medicine, MedicineType, Lifestyle } from '../types';
+import { extractMedicineInfo, getMedicineRecommendations, getSmartSchedule } from '../services/aiService';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { SmartSchedule } from './SmartSchedule';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,8 @@ interface AddMedProps {
 }
 
 export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, scannerSource, initialData }) => {
-  const { addMedicine, isPremium, activeProfileId } = useStore();
+  const { addMedicine, isPremium, activeProfileId, profiles } = useStore();
+  const activeProfile = profiles.find(p => p.id === activeProfileId);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const medImageInputRef = useRef<HTMLInputElement>(null);
@@ -122,10 +123,38 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
     reader.readAsDataURL(file);
   };
 
+  const handleAIScheduleSuggestion = async () => {
+    if (!activeProfile?.lifestyle) {
+      toast.error('Lifestyle data not set.');
+      return;
+    }
+    try {
+      toast.info('Analyzing...');
+      const suggestion = await getSmartSchedule({ name, dosage, type, instructions }, activeProfile.lifestyle);
+      setTimes(suggestion.suggestedTimes);
+      toast.success('Suggestions applied!');
+    } catch (e) {
+      toast.error('Failed to get insights.');
+    }
+  };
+
   const handleAdd = () => {
     if (!name || !dosage) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    if (times.length === 0) {
+      toast.error('Please add at least one reminder time');
+      return;
+    }
+
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    for (const time of times) {
+      if (!timeRegex.test(time)) {
+        toast.error(`Invalid time format: ${time}. Please use HH:mm`);
+        return;
+      }
     }
 
     const newMed: Medicine = {
@@ -371,10 +400,10 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Reminder Times</label>
                   <button 
-                    onClick={() => setShowSmartSchedule(true)}
+                    onClick={handleAIScheduleSuggestion}
                     className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg transition-all"
                   >
-                    <Sparkles size={12} /> Auto-suggest
+                    <Sparkles size={12} /> Smart Suggest
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -463,17 +492,21 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
               )}
 
               <div className="pt-4 border-t border-slate-50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500">Reminder Tone</span>
-                  <select 
-                    value={reminderTone}
-                    onChange={(e) => setReminderTone(e.target.value)}
-                    className="bg-slate-50 border-none rounded-lg px-3 py-1 text-[10px] font-bold text-slate-600 outline-none focus:ring-1 focus:ring-primary transition-all"
-                  >
-                    <option value="gentle">Gentle</option>
-                    <option value="standard">Standard</option>
-                    <option value="loud">Loud</option>
-                  </select>
+                <div className="flex items-center gap-2">
+                  {['gentle', 'standard', 'loud'].map((tone) => (
+                    <button
+                      key={tone}
+                      onClick={() => setReminderTone(tone)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all capitalize",
+                        reminderTone === tone 
+                          ? "bg-primary text-white" 
+                          : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                      )}
+                    >
+                      {tone}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -491,13 +524,30 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
               </div>
               <div className="space-y-3">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Expiry Date</label>
-                <input 
-                  type="date" 
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className="w-full bg-white border-none card-shadow rounded-[24px] p-5 focus:ring-2 focus:ring-primary outline-none transition-all font-medium"
-                />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full bg-white border-none card-shadow rounded-[24px] p-5 focus:ring-2 focus:ring-primary outline-none transition-all font-medium text-slate-700"
+                  />
+                  {!expiryDate && (
+                    <span className="absolute left-5 top-5 text-slate-400 pointer-events-none">Select date</span>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Buy Medicine Option */}
+            <div className="space-y-3 pt-4 border-t border-slate-100">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Buy Medicine (Partner Pharmacies)</label>
+              <Button 
+                variant="outline"
+                onClick={() => toast.info('Connecting to Partner Pharmacies...', { description: 'Browse and buy your medicine with ease.' })}
+                className="w-full h-16 rounded-[24px] border-2 border-primary/20 text-primary font-bold hover:bg-primary/5 flex items-center justify-center gap-2"
+              >
+                <span className="text-2xl">💊</span> Browse Partner Pharmacies
+              </Button>
             </div>
           </div>
         </div>

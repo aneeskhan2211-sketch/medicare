@@ -321,23 +321,25 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
           </section>
 
           {/* Intake Guidelines */}
-          <section className="space-y-3">
-            <h3 className="font-display font-semibold text-lg flex items-center gap-2">
-              <Info size={18} className="text-primary" />
+          <section className="space-y-4 pt-4">
+            <h3 className="font-display font-semibold text-xl flex items-center gap-2 text-slate-900">
+              <Info size={20} className="text-primary" />
               Intake Guidelines
             </h3>
             {!isEditing ? (
-              <Card className="border-none bg-indigo-50/50 p-4 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
+              <Card className="border-none bg-indigo-50/50 p-6 rounded-[24px] space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 text-sm text-slate-700 bg-white/50 px-4 py-2 rounded-xl">
                   <span className="font-bold text-slate-500 uppercase text-[10px]">Meal Instructions:</span>
-                  <span className="capitalize">{medicine.mealInstruction || "Not specified"}</span>
+                  <span className="capitalize font-medium text-slate-900">{medicine.mealInstruction || "Not specified"}</span>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {medicine.instructions || "No specific instructions provided."}
-                </p>
+                <div className="pt-2 border-t border-indigo-100/50">
+                  <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                    {medicine.instructions || "No specific instructions provided."}
+                  </p>
+                </div>
               </Card>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <span className="font-bold text-slate-500 uppercase text-[10px]">Meal Instructions:</span>
                     <span className="capitalize">{medicine.mealInstruction || "Not specified"}</span>
@@ -346,7 +348,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                     value={editedInstructions}
                     onChange={(e) => setEditedInstructions(e.target.value)}
                     placeholder="e.g. Take with food, avoid alcohol..."
-                    className="rounded-2xl border-slate-200 min-h-[100px]"
+                    className="rounded-2xl border-slate-200 min-h-[120px]"
                   />
                 </div>
             )}
