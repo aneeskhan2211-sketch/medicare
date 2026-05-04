@@ -28,7 +28,18 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function App() {
-  const { isAuthenticated, user, reminders, updateReminderStatus, medicines, profiles, addReminder, generateReminders, tasks, updateTaskStatus } = useStore();
+  const isAuthenticated = useStore(state => state.isAuthenticated);
+  const user = useStore(state => state.user);
+  const reminders = useStore(state => state.reminders);
+  const updateReminderStatus = useStore(state => state.updateReminderStatus);
+  const medicines = useStore(state => state.medicines);
+  const profiles = useStore(state => state.profiles);
+  const addReminder = useStore(state => state.addReminder);
+  const generateReminders = useStore(state => state.generateReminders);
+  const tasks = useStore(state => state.tasks);
+  const updateTaskStatus = useStore(state => state.updateTaskStatus);
+  const settings = useStore(state => state.settings);
+
   const [activeTab, setActiveTab] = useState('home');
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -47,6 +58,14 @@ export default function App() {
   const [showReviewScan, setShowReviewScan] = useState(false);
 
   useEffect(() => {
+    if (settings?.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings?.darkMode]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       generateReminders();
     }
@@ -60,6 +79,16 @@ export default function App() {
       const currentTime = format(now, 'HH:mm');
       const today = format(now, 'yyyy-MM-dd');
 
+      const isQuietHours = () => {
+        if (!settings?.quietHours?.enabled) return false;
+        const start = settings.quietHours.start;
+        const end = settings.quietHours.end;
+        if (start < end) {
+          return currentTime >= start && currentTime < end;
+        }
+        return currentTime >= start || currentTime < end;
+      };
+
       const dueReminder = reminders.find(r => 
         r.date === today && 
         r.status === 'pending' && 
@@ -67,9 +96,19 @@ export default function App() {
       );
 
       if (dueReminder && !activeReminder) {
-        setActiveReminder(dueReminder);
-        // Play sound simulation
-        console.log('Reminder sound playing...');
+        if (!isQuietHours() || settings?.notifications?.enabled) {
+          setActiveReminder(dueReminder);
+          
+          // Play sound based on settings
+          const soundFile = settings?.notifications?.reminderSound === 'chime' 
+            ? 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3' 
+            : settings?.notifications?.reminderSound === 'alarm'
+            ? 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
+            : 'https://assets.mixkit.co/active_storage/sfx/600/600-preview.mp3';
+            
+          const audio = new Audio(soundFile);
+          audio.play().catch(() => console.log('Audio playback prevented by browser policy'));
+        }
       }
 
       const dueTask = tasks.find(t => 
@@ -78,7 +117,7 @@ export default function App() {
         t.dueTime === currentTime
       );
 
-      if (dueTask && !activeTask) {
+      if (dueTask && !activeTask && !isQuietHours()) {
         setActiveTask(dueTask);
         toast.info(`Task Reminder: ${dueTask.title}`, {
           description: `It's time for your scheduled task.`,
@@ -100,9 +139,9 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 max-w-md mx-auto relative overflow-hidden shadow-2xl">
+      <div className="min-h-screen bg-background transition-colors duration-300 max-w-md mx-auto relative overflow-hidden shadow-2xl">
         <Login />
-        <Toaster position="top-center" richColors />
+        <Toaster position="top-center" richColors theme={settings.darkMode ? 'dark' : 'light'} />
       </div>
     );
   }
@@ -205,7 +244,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-gradient-to-b from-[#F7F8FC] to-[#EEF2FF]">
+    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-[#F7F8FC] dark:bg-[#0f172a] transition-colors duration-300">
       {/* Global Medical Watermark */}
       <div className="absolute bottom-10 right-5 w-50 opacity-5 blur-sm pointer-events-none z-0">
         <img src="https://cdn-icons-png.flaticon.com/512/3062/3062634.png" alt="Watermark" className="filter-green" />

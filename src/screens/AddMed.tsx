@@ -257,30 +257,39 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
           <div className="space-y-4">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Medicine Image</label>
             {medImage ? (
-              <div className="relative w-full aspect-video rounded-[32px] overflow-hidden border-2 border-slate-200 shadow-md">
+              <div className="relative w-full aspect-video rounded-[32px] overflow-hidden border-2 border-slate-200 shadow-md group">
                 <img src={medImage} alt="Medicine" className="w-full h-full object-cover" />
                 
-                {/* Fixed position Remove button for easier clicking */}
-                <button 
-                  className="absolute top-4 right-4 bg-red-500 text-white p-3 rounded-full shadow-lg hover:bg-red-600 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMedImage(null);
-                  }}
-                  aria-label="Remove image"
-                >
-                  <X size={20} />
-                </button>
+                {/* Overlay actions */}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                  <button 
+                    className="bg-white/90 backdrop-blur-sm text-slate-900 p-4 rounded-full shadow-lg hover:bg-white transition-all flex items-center justify-center"
+                    onClick={() => medImageInputRef.current?.click()}
+                    aria-label="Change image"
+                  >
+                    <Upload size={20} />
+                  </button>
+                  <button 
+                    className="bg-red-500 text-white p-4 rounded-full shadow-lg hover:bg-red-600 transition-all flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMedImage(null);
+                    }}
+                    aria-label="Remove image"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
             ) : (
               <Button 
                 onClick={() => medImageInputRef.current?.click()}
-                className="w-full h-32 flex flex-col items-center justify-center gap-3 rounded-[32px] border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 hover:border-primary/50 hover:bg-indigo-50/50 transition-all font-bold"
+                className="w-full h-40 flex flex-col items-center justify-center gap-4 rounded-[32px] border-2 border-dashed border-slate-300 bg-indigo-50/30 text-indigo-600 hover:border-primary/50 hover:bg-indigo-50 transition-all font-bold"
               >
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border border-slate-100">
-                  <Camera size={24} />
+                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border border-slate-100">
+                  <Upload size={28} />
                 </div>
-                Click to upload medicine photo
+                <span>Upload a medicine photo</span>
               </Button>
             )}
             <input ref={medImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleMedImageSelect} />

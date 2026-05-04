@@ -55,21 +55,21 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-background transition-colors duration-300">
         {/* Background Watermark */}
         <div className="absolute top-1/2 right-0 w-64 h-64 opacity-[0.03] pointer-events-none -mr-20 filter blur-[2px]">
-          <Shield size={256} className="text-slate-900" />
+          <Shield size={256} className="text-foreground" />
         </div>
         <div className="absolute bottom-20 left-0 w-48 h-48 opacity-[0.03] pointer-events-none -ml-10 filter blur-[2px]">
-          <Heart size={192} className="text-slate-900" />
+          <Heart size={192} className="text-foreground" />
         </div>
 
-        <header className="p-6 bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-100 flex justify-between items-center">
-        <h1 className="text-2xl font-display font-bold text-slate-900">Profile</h1>
+        <header className="p-6 bg-background/80 backdrop-blur-md sticky top-0 z-30 border-b border-border flex justify-between items-center transition-colors">
+        <h1 className="text-2xl font-display font-bold text-foreground">Profile</h1>
         <motion.button 
           whileTap={{ scale: 0.9 }}
           onClick={() => setShowSettings(true)}
-          className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400"
+          className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground transition-colors"
         >
           <Settings size={20} />
         </motion.button>
@@ -83,9 +83,9 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="w-28 h-28 rounded-[40px] bg-white p-1 shadow-2xl shadow-indigo-200/50"
+                className="w-28 h-28 rounded-[40px] bg-card p-1 shadow-2xl shadow-primary/10 border border-border"
               >
-                <div className="w-full h-full rounded-[36px] bg-indigo-50 flex items-center justify-center text-indigo-600 text-4xl font-display font-bold border-4 border-white overflow-hidden">
+                <div className="w-full h-full rounded-[36px] bg-primary/10 flex items-center justify-center text-primary text-4xl font-display font-bold border-4 border-card overflow-hidden">
                   {user?.name?.[0] || 'U'}
                 </div>
               </motion.div>
@@ -93,31 +93,31 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
                 <motion.div 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -bottom-2 -right-2 bg-amber-400 text-white p-2 rounded-2xl shadow-lg border-4 border-white"
+                  className="absolute -bottom-2 -right-2 bg-amber-400 text-white p-2 rounded-2xl shadow-lg border-4 border-card"
                 >
                   <Crown size={20} fill="currentColor" />
                 </motion.div>
               )}
             </div>
             <div className="space-y-1">
-              <h2 className="text-2xl font-display font-bold text-slate-900">{user?.name}</h2>
-              <p className="text-slate-400 text-sm font-medium">{user?.email}</p>
+              <h2 className="text-2xl font-display font-bold text-foreground">{user?.name}</h2>
+              <p className="text-muted-foreground text-sm font-medium">{user?.email}</p>
             </div>
             
             <div className="flex gap-4 w-full max-w-xs mx-auto">
-              <div className="flex-1 bg-white p-4 rounded-[24px] card-shadow border border-slate-50 flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-4 rounded-[24px] shadow-sm border border-border flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <Flame size={20} className="text-orange-500 fill-orange-500" />
-                  <span className="text-xl font-bold text-slate-900">{user?.streak || 0}</span>
+                  <span className="text-xl font-bold text-foreground">{user?.streak || 0}</span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Day Streak</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Day Streak</span>
               </div>
-              <div className="flex-1 bg-white p-4 rounded-[24px] card-shadow border border-slate-50 flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-4 rounded-[24px] shadow-sm border border-border flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] font-bold text-white">C</div>
-                  <span className="text-xl font-bold text-slate-900">{user?.coins || 0}</span>
+                  <span className="text-xl font-bold text-foreground">{user?.coins || 0}</span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coins</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Coins</span>
               </div>
             </div>
           </section>
@@ -127,8 +127,8 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             whileHover={{ scale: 1.02 }}
             onClick={onShowPaywall}
             className={cn(
-              "rounded-[32px] p-6 text-white card-shadow relative overflow-hidden cursor-pointer",
-              user?.tier === 'basic' ? "bg-gradient-to-br from-indigo-600 to-indigo-800" : 
+              "rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden cursor-pointer",
+              user?.tier === 'basic' ? "bg-gradient-to-br from-primary to-primary/80" : 
               user?.tier === 'pro' ? "bg-gradient-to-br from-indigo-500 to-indigo-700" :
               user?.tier === 'premium' ? "bg-gradient-to-br from-purple-600 to-purple-800" :
               "bg-gradient-to-br from-amber-500 to-amber-700"
@@ -159,9 +159,9 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
           {/* Family Profiles */}
           <section className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h3 className="font-display font-bold text-lg text-slate-900">Family Profiles</h3>
+              <h3 className="font-display font-bold text-lg text-foreground">Family Profiles</h3>
               <button 
-                onClick={() => isPremium ? toast.info('Add profile coming soon!') : onShowPaywall()}
+                onClick={() => isPremium ? toast.info('Add profile feature coming soon!') : onShowPaywall()}
                 className="text-primary text-sm font-bold flex items-center gap-1"
               >
                 <Plus size={16} /> Add New
@@ -177,17 +177,17 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
                   className={cn(
                     "flex flex-col items-center gap-3 min-w-[100px] p-4 rounded-[28px] transition-all cursor-pointer border-2",
                     activeProfileId === profile.id 
-                      ? "bg-white border-primary card-shadow" 
-                      : "bg-white border-transparent card-shadow opacity-60"
+                      ? "bg-card border-primary shadow-md" 
+                      : "bg-card border-transparent shadow-sm opacity-60"
                   )}
                 >
-                  <Avatar className="w-14 h-14 border-4 border-slate-50 shadow-inner">
+                  <Avatar className="w-14 h-14 border-4 border-card shadow-inner">
                     <AvatarImage src={profile.avatar} />
                     <AvatarFallback className="font-bold text-white text-xl" style={{ backgroundColor: profile.color }}>
                       {profile.name[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-xs font-bold text-slate-700 truncate w-full text-center">
+                  <span className="text-xs font-bold text-foreground truncate w-full text-center">
                     {profile.name.split(' ')[0]}
                   </span>
                 </motion.div>
@@ -197,17 +197,17 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
 
           {/* Emergency Section */}
           <section className="space-y-4">
-            <h3 className="font-display font-bold text-lg text-slate-900 px-1">Emergency</h3>
-            <Card className="border-none bg-red-50 rounded-[20px] overflow-hidden">
+            <h3 className="font-display font-bold text-lg text-foreground px-1">Emergency</h3>
+            <Card className="border-none bg-destructive/10 rounded-[20px] overflow-hidden">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-red-500 shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center text-destructive shadow-sm">
                   <Phone size={28} />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-slate-900">{activeProfile.emergencyContact?.name || 'Emergency Contact'}</h4>
-                  <p className="text-xs text-slate-500 font-medium">{activeProfile.emergencyContact?.phone || 'Not set'}</p>
+                  <h4 className="font-bold text-foreground">{activeProfile.emergencyContact?.name || 'Emergency Contact'}</h4>
+                  <p className="text-xs text-muted-foreground font-medium">{activeProfile.emergencyContact?.phone || 'Not set'}</p>
                 </div>
-                <Button className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-6 h-12 font-bold shadow-lg shadow-red-200">
+                <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-2xl px-6 h-12 font-bold shadow-lg shadow-destructive/20">
                   Call
                 </Button>
               </CardContent>
@@ -216,8 +216,8 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
 
           {/* Settings Menu */}
           <section className="space-y-4">
-            <h3 className="font-display font-bold text-lg text-slate-900 px-1">Settings</h3>
-            <div className="bg-white rounded-[20px] card-shadow overflow-hidden border border-slate-50">
+            <h3 className="font-display font-bold text-lg text-foreground px-1">Settings</h3>
+            <div className="bg-card rounded-[20px] shadow-sm overflow-hidden border border-border">
               <MenuButton icon={Settings} label="General Settings" onClick={() => setShowSettings(true)} />
               <MenuButton icon={WalletIcon} label="My Wallet" onClick={onShowWallet} />
               <MenuButton icon={UserPlus} label="Refer friends & get Rs 100" onClick={handleReferral} />
@@ -234,15 +234,15 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
           <Button 
             variant="ghost" 
             onClick={() => toast.info('Sign out coming soon!')}
-            className="w-full h-16 rounded-[24px] text-red-500 hover:text-red-600 hover:bg-red-50 font-bold text-lg"
+            className="w-full h-16 rounded-[24px] text-destructive hover:text-destructive/80 hover:bg-destructive/10 font-bold text-lg"
           >
             <LogOut size={20} className="mr-3" />
             Sign Out
           </Button>
 
           <div className="text-center space-y-1">
-            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">MediMind v2.0.4</p>
-            <p className="text-[10px] font-medium text-slate-300">Made with ❤️ for your health</p>
+            <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-[0.2em]">MediMind v2.0.4</p>
+            <p className="text-[10px] font-medium text-muted-foreground/30">Made with ❤️ for your health</p>
           </div>
         </div>
       </ScrollArea>
@@ -253,24 +253,24 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
 const MenuButton = ({ icon: Icon, label, badge, onClick }: any) => (
   <button 
     onClick={onClick}
-    className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all group border-b border-slate-50 last:border-none"
+    className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-all group border-b border-border last:border-none"
   >
     <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-[18px] bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+      <div className="w-12 h-12 rounded-[18px] bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all">
         <Icon size={22} />
       </div>
-      <span className="font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{label}</span>
+      <span className="font-bold text-foreground/80 group-hover:text-foreground transition-colors">{label}</span>
     </div>
     <div className="flex items-center gap-3">
       {badge && (
         <Badge className={cn(
           "border-none font-bold text-[10px] px-2 py-0.5 rounded-lg",
-          badge === "PRO" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+          badge === "PRO" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : "bg-primary/10 text-primary"
         )}>
           {badge}
         </Badge>
       )}
-      <ChevronRight size={20} className="text-slate-200 group-hover:text-slate-400 transition-all" />
+      <ChevronRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-all" />
     </div>
   </button>
 );

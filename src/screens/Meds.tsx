@@ -19,10 +19,19 @@ interface MedsProps {
 }
 
 export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
-  const { medicines, deleteMedicine, reminders, activeProfileId, profiles, user } = useStore();
+  const medicines = useStore(state => state.medicines);
+  const deleteMedicine = useStore(state => state.deleteMedicine);
+  const reminders = useStore(state => state.reminders);
+  const activeProfileId = useStore(state => state.activeProfileId);
+  const profiles = useStore(state => state.profiles);
+  const user = useStore(state => state.user);
+
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
 
-  const profileMedicines = medicines.filter(m => m.profileId === activeProfileId);
+  const profileMedicines = React.useMemo(() => 
+    medicines.filter(m => m.profileId === activeProfileId),
+    [medicines, activeProfileId]
+  );
   
   const limits = {
     basic: 3,
@@ -32,14 +41,14 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
   };
   const limit = user ? limits[user.tier] : 3;
 
-  const getNextTime = (med: Medicine) => {
+  const getNextTime = React.useCallback((med: Medicine) => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const medReminders = reminders.filter(r => r.medicineId === med.id && r.date === today && r.status === 'pending');
     if (medReminders.length === 0) return 'Done for today';
     
     const sorted = medReminders.sort((a, b) => a.time.localeCompare(b.time));
     return sorted[0].time;
-  };
+  }, [reminders]);
 
   const getMedIcon = (type: MedicineType) => {
     switch (type) {
@@ -56,8 +65,8 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
           <header className="flex justify-between items-center">
             <div className="space-y-1">
               <ProfileSwitcher />
-              <h1 className="text-2xl font-display font-bold text-slate-900">My Medicines</h1>
-              <p className="text-slate-500 text-sm font-medium">{profileMedicines.length} active medications</p>
+              <h1 className="text-2xl font-display font-bold text-foreground transition-colors">My Medicines</h1>
+              <p className="text-muted-foreground text-sm font-medium transition-colors">{profileMedicines.length} active medications</p>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -69,12 +78,12 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
           </header>
 
         {user && user.tier === 'basic' && medicines.length >= 3 && (
-          <Card className="bg-indigo-50 border-indigo-100 p-4 rounded-3xl">
+          <Card className="bg-primary/10 border-primary/20 p-4 rounded-3xl">
             <div className="flex gap-3">
-              <Info className="text-indigo-500 shrink-0" size={20} />
-              <p className="text-xs text-indigo-700 font-medium leading-relaxed">
+              <Info className="text-primary shrink-0 transition-colors" size={20} />
+              <p className="text-xs text-foreground/80 font-medium leading-relaxed transition-colors">
                 You've reached the free limit of 3 medicines. 
-                <button className="font-bold ml-1 underline decoration-2 underline-offset-2">Upgrade to Pro</button> for unlimited tracking.
+                <button className="font-bold ml-1 underline decoration-2 underline-offset-2 text-primary hover:text-primary/80 transition-colors">Upgrade to Pro</button> for unlimited tracking.
               </p>
             </div>
           </Card>
@@ -87,11 +96,11 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-20"
             >
-              <div className="w-24 h-24 bg-white rounded-[40px] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50">
-                <Pill className="text-slate-200" size={48} />
+              <div className="w-24 h-24 bg-card rounded-[40px] flex items-center justify-center mx-auto mb-6 shadow-xl border border-border shadow-slate-200/50">
+                <Pill className="text-muted-foreground/30" size={48} />
               </div>
-              <h3 className="text-slate-900 font-bold text-lg">No medicines added yet</h3>
-              <p className="text-slate-400 text-sm mt-2 max-w-[200px] mx-auto">Tap the + button to add your first medication.</p>
+              <h3 className="text-foreground font-bold text-lg">No medicines added yet</h3>
+              <p className="text-muted-foreground text-sm mt-2 max-w-[200px] mx-auto">Tap the + button to add your first medication.</p>
             </motion.div>
           ) : (
             <div className="space-y-5 pb-8">
@@ -106,7 +115,7 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
                 >
                   <Card 
                     onClick={() => onSelectMed(med)}
-                    className="border-none card-shadow overflow-hidden group cursor-pointer active:scale-[0.98] transition-all rounded-[20px] bg-white"
+                    className="border-none shadow-md overflow-hidden group cursor-pointer active:scale-[0.98] transition-all rounded-[20px] bg-card"
                   >
                     <motion.div 
                       initial={{ width: 0 }}
@@ -118,25 +127,25 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
                     <CardContent className="p-6 flex items-center gap-5">
                       <motion.div 
                         whileHover={{ rotate: [0, -10, 10, 0] }}
-                        className="w-16 h-16 rounded-[24px] bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shadow-inner"
+                        className="w-16 h-16 rounded-[24px] bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors shadow-inner"
                       >
                         {getMedIcon(med.type)}
                       </motion.div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-bold text-slate-900 text-xl group-hover:text-primary transition-colors flex items-center gap-2">
-                                <span className="text-slate-400 group-hover:text-primary transition-colors">
+                            <h4 className="font-bold text-foreground text-xl group-hover:text-primary transition-colors flex items-center gap-2">
+                                <span className="text-muted-foreground/40 group-hover:text-primary transition-colors">
                                   {React.cloneElement(getMedIcon(med.type), { size: 18 })}
                                 </span>
                                 {med.name}
                             </h4>
-                            <p className="text-sm text-slate-500 font-bold mt-0.5">{med.dosage}</p>
+                            <p className="text-sm text-muted-foreground font-bold mt-0.5">{med.dosage}</p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <Badge variant="secondary" className={cn(
-                              "font-bold px-2 py-0.5 rounded-lg", 
-                              med.stock < 5 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                              "font-bold px-2 py-0.5 rounded-lg border border-border", 
+                              med.stock < 5 ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-muted text-muted-foreground"
                             )}>
                               {med.stock}/{med.totalStock}
                             </Badge>
@@ -151,17 +160,21 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed }) => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2 mt-3">
-                          <Badge className="bg-indigo-50 text-indigo-600 border-none text-[10px] font-bold px-2 py-0.5">
-                            {med.instructions || 'After Meal'}
-                          </Badge>
-                          <div className="flex items-center gap-1 text-slate-400">
-                            <Clock size={12} />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Next: {getNextTime(med)}</span>
+                        <div className="flex flex-col gap-2 mt-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <Badge className="bg-primary/10 text-primary border-none text-[11px] font-bold px-3 py-1.5 rounded-xl h-auto whitespace-normal text-left leading-relaxed inline-block max-w-[200px]">
+                                {med.instructions || 'After Meal'}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-muted-foreground bg-muted px-2 py-1 rounded-lg shrink-0">
+                              <Clock size={12} className="shrink-0 text-muted-foreground/50" />
+                              <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">Next: {getNextTime(med)}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <ChevronRight size={24} className="text-slate-200 group-hover:text-primary transition-colors" />
+                      <ChevronRight size={24} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
                     </CardContent>
                   </Card>
                 </motion.div>

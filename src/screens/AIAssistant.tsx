@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Send, Mic, Sparkles, X, Trash2, Info, Camera, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -58,7 +57,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedici
         {mainContent.split('\n').map((line, i) => <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>)}
         <Button 
           onClick={() => handleSchedule(medData)}
-          className="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold"
+          className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl"
         >
           Schedule {medData.name}
         </Button>
@@ -71,6 +70,36 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedici
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const startSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      toast.info('Listening...', { duration: 2000 });
+    };
+
+    recognition.onresult = (event: any) => {
+      const speechToText = event.results[0][0].transcript;
+      setInput(speechToText);
+      toast.success('Processed speech!');
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error', event.error);
+      toast.error('Speech recognition failed');
+    };
+
+    recognition.start();
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,24 +168,6 @@ I can help you add all of these to your schedule at once. Would you like to revi
     }
   }, [chatHistory, isTyping]);
 
-  const getMockResponse = (userInput: string) => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('remind') || input.includes('schedule')) {
-      return "I can definitely help you with that! To set a reminder, just head over to the 'Add' tab. For Paracetamol 3 times a day, I'd suggest 8:00 AM, 2:00 PM, and 8:00 PM to keep consistent levels in your system. Would you like me to guide you there?";
-    }
-    
-    if (input.includes('missed') || input.includes('forgot')) {
-      return "Oh no, don't worry! It happens. Generally, if you miss a dose, take it as soon as you remember. But if it's almost time for your next dose, skip the missed one. **Important: Never take two doses at once.** \n\n*Disclaimer: I am an AI assistant, not a doctor. Please consult your physician or pharmacist for specific medical advice.*";
-    }
-
-    if (input.includes('hello') || input.includes('hi')) {
-      return "Hello! I'm your MediMind buddy. I'm here to help you stay on track with your medications and answer any general questions you might have. What's on your mind?";
-    }
-
-    return "That's a great question! While I'm still learning, I can help with scheduling and general adherence tips. Is there something specific about your medications you'd like to discuss? \n\n*Remember to always follow your doctor's specific instructions!*";
-  };
-
   const handleSend = async (force: boolean = false) => {
     if (!input.trim() && !force) return;
     if (isTyping) return;
@@ -212,33 +223,33 @@ I can help you add all of these to your schedule at once. Would you like to revi
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <header className="p-4 glass border-b border-slate-200 flex justify-between items-center z-10">
+      <header className="p-4 bg-card border-b border-border flex justify-between items-center z-10 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="font-display font-bold text-slate-900">Medicare AI</h2>
+            <h2 className="font-display font-bold text-foreground">Medicare AI</h2>
             <div className="flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Online</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Online</span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={clearChat} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+          <button onClick={clearChat} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
             <Trash2 size={20} />
           </button>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground transition-colors">
             <X size={24} />
           </button>
         </div>
       </header>
 
       {/* Chat Area */}
-      <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 w-full touch-pan-y min-h-0" ref={scrollRef} style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="space-y-6 pb-4">
           {chatHistory.map((msg) => (
             <motion.div
@@ -251,10 +262,10 @@ I can help you add all of these to your schedule at once. Would you like to revi
               )}
             >
               <div className={cn(
-                "max-w-[85%] p-4 rounded-3xl text-sm leading-relaxed shadow-sm",
+                "max-w-[85%] p-4 rounded-3xl text-sm leading-relaxed shadow-sm transition-colors",
                 msg.role === 'user' 
-                  ? "bg-indigo-600 text-white rounded-tr-none" 
-                  : "bg-white text-slate-700 rounded-tl-none border border-slate-100"
+                  ? "bg-primary text-white rounded-tr-none" 
+                  : "bg-card text-foreground rounded-tl-none border border-border"
               )}>
                 {renderMessageContent(msg.content)}
               </div>
@@ -267,18 +278,18 @@ I can help you add all of these to your schedule at once. Would you like to revi
               animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className="bg-white p-4 rounded-3xl rounded-tl-none border border-slate-100 shadow-sm flex gap-1">
-                <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" />
-                <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:0.4s]" />
+              <div className="bg-card p-4 rounded-3xl rounded-tl-none border border-border shadow-sm flex gap-1 transition-colors">
+                <div className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full animate-bounce" />
+                <div className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
             </motion.div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-slate-100 space-y-4 safe-bottom">
+      <div className="p-4 bg-card border-t border-border space-y-4 safe-bottom transition-colors">
         {/* Suggestions */}
         {chatHistory.length < 3 && (
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
@@ -286,7 +297,7 @@ I can help you add all of these to your schedule at once. Would you like to revi
               <button
                 key={i}
                 onClick={() => { setInput(s); handleSend(); }}
-                className="whitespace-nowrap bg-slate-50 text-slate-600 text-xs font-medium px-4 py-2 rounded-full border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 transition-all"
+                className="whitespace-nowrap bg-muted text-muted-foreground text-xs font-medium px-4 py-2 rounded-full border border-border hover:bg-primary/5 hover:border-primary/20 transition-all font-bold"
               >
                 {s}
               </button>
@@ -299,7 +310,7 @@ I can help you add all of these to your schedule at once. Would you like to revi
             <button 
               onClick={() => cameraInputRef.current?.click()}
               disabled={isScanning || isTyping}
-              className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-all border border-slate-100 disabled:opacity-50"
+              className="w-10 h-10 rounded-xl bg-muted text-muted-foreground hover:text-primary hover:bg-primary/5 flex items-center justify-center transition-all border border-border disabled:opacity-50"
               title="Camera"
             >
               <Camera size={18} />
@@ -309,7 +320,7 @@ I can help you add all of these to your schedule at once. Would you like to revi
             <button 
               onClick={() => galleryInputRef.current?.click()}
               disabled={isScanning || isTyping}
-              className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-all border border-slate-100 disabled:opacity-50"
+              className="w-10 h-10 rounded-xl bg-muted text-muted-foreground hover:text-primary hover:bg-primary/5 flex items-center justify-center transition-all border border-border disabled:opacity-50"
               title="Gallery"
             >
               <Upload size={18} />
@@ -323,16 +334,20 @@ I can help you add all of these to your schedule at once. Would you like to revi
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ask me anything..."
-              className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-4 pr-12 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-full bg-muted border-none rounded-2xl py-4 pl-4 pr-12 text-sm focus:ring-2 focus:ring-primary outline-none transition-all text-foreground"
             />
-            <button className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors">
+            <button 
+                onClick={startSpeechRecognition}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                title="Voice Input"
+            >
               <Mic size={20} />
             </button>
           </div>
           <Button 
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isTyping}
-            className="w-12 h-12 rounded-2xl p-0 shadow-lg shadow-indigo-200"
+            className="w-12 h-12 rounded-2xl p-0 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90"
           >
             <Send size={20} />
           </Button>

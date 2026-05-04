@@ -2,7 +2,6 @@ import React from 'react';
 import { X, Check, Crown, Zap, Users, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'motion/react';
 import { useStore } from '../store/useStore';
 import { toast } from 'sonner';
@@ -63,25 +62,25 @@ export const Paywall: React.FC<PaywallProps> = ({ onClose }) => {
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-[100] bg-white flex flex-col"
+      className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="relative p-6 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+      <div className="relative p-6 bg-card border-b border-border flex justify-between items-center shrink-0 transition-colors">
         <div>
-          <h2 className="text-2xl font-display font-bold text-slate-900">Choose Your Plan</h2>
-          <p className="text-slate-500 text-xs font-medium">India Market Optimized Pricing</p>
+          <h2 className="text-2xl font-display font-bold text-foreground">Choose Your Plan</h2>
+          <p className="text-muted-foreground text-xs font-medium">India Market Optimized Pricing</p>
         </div>
         <button 
           onClick={onClose}
-          className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center"
+          className="w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center hover:bg-muted/80 transition-colors"
         >
           <X size={20} />
         </button>
       </div>
 
       {/* Plans List */}
-      <ScrollArea className="flex-1">
-        <div className="p-6 space-y-6 pb-32">
+      <div className="flex-1 overflow-y-scroll w-full overscroll-contain touch-pan-y min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="p-6 space-y-6 pb-40 max-w-full">
           {plans.map((plan, idx) => (
             <motion.div
               key={plan.id}
@@ -90,8 +89,8 @@ export const Paywall: React.FC<PaywallProps> = ({ onClose }) => {
               transition={{ delay: idx * 0.1 }}
             >
               <Card className={cn(
-                "relative overflow-hidden border-2 transition-all",
-                plan.popular ? "border-purple-500 shadow-xl shadow-purple-100" : "border-slate-100",
+                "relative overflow-hidden border-2 transition-all bg-card",
+                plan.popular ? "border-purple-500 shadow-xl shadow-purple-500/10" : "border-border",
                 user?.tier === plan.id && "ring-2 ring-primary ring-offset-2"
               )}>
                 {plan.popular && (
@@ -101,26 +100,29 @@ export const Paywall: React.FC<PaywallProps> = ({ onClose }) => {
                 )}
                 
                 <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex justify-between items-start mb-6">
                     <div className="space-y-1">
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white mb-2", plan.color)}>
-                        {plan.id === 'basic' ? <ShieldCheck size={20} /> : plan.id === 'pro' ? <Zap size={20} /> : plan.id === 'premium' ? <Crown size={20} /> : <Users size={20} />}
+                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-2 shadow-lg", plan.color)}>
+                        {plan.id === 'basic' ? <ShieldCheck size={24} /> : plan.id === 'pro' ? <Zap size={24} /> : plan.id === 'premium' ? <Crown size={24} /> : <Users size={24} />}
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                      <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-display font-bold text-slate-900">{plan.price}<span className="text-sm font-normal text-slate-400">{plan.period}</span></p>
-                      {plan.id === 'pro' && <p className="text-[10px] text-indigo-500 font-bold">Mass Favorite</p>}
+                      <div className="flex flex-col items-end">
+                        <span className="text-2xl font-display font-bold text-foreground">{plan.price}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{plan.period ? plan.period : 'Forever Free'}</span>
+                      </div>
+                      {plan.id === 'pro' && <p className="mt-1 text-[10px] text-indigo-500 font-bold uppercase tracking-tighter">Mass Favorite</p>}
                     </div>
                   </div>
 
-                  <ul className="space-y-3 mb-6">
+                  <ul className="space-y-4 mb-8">
                     {plan.features.map((feature, fIdx) => (
-                      <li key={fIdx} className="flex items-start gap-3 text-sm text-slate-600">
-                        <div className="mt-1 w-4 h-4 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                          <Check size={10} strokeWidth={3} />
+                      <li key={fIdx} className="flex items-start gap-3 text-sm text-muted-foreground">
+                        <div className="mt-1 w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                          <Check size={12} strokeWidth={3} />
                         </div>
-                        {feature}
+                        <span className="leading-tight">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -129,21 +131,21 @@ export const Paywall: React.FC<PaywallProps> = ({ onClose }) => {
                     onClick={() => handleUpgrade(plan.id)}
                     disabled={user?.tier === plan.id}
                     className={cn(
-                      "w-full h-12 rounded-xl font-bold transition-all",
+                      "w-full h-14 rounded-2xl font-bold transition-all text-base",
                       plan.popular 
-                        ? "bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-200" 
-                        : "bg-slate-900 hover:bg-slate-800",
-                      user?.tier === plan.id && "bg-slate-100 text-slate-400 hover:bg-slate-100"
+                        ? "bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/20 text-white" 
+                        : "bg-primary hover:bg-primary/90 text-white",
+                      user?.tier === plan.id && "bg-muted text-muted-foreground hover:bg-muted opacity-80"
                     )}
                   >
-                    {user?.tier === plan.id ? 'Current Plan' : plan.id === 'basic' ? 'Get Started' : 'Upgrade Now'}
+                    {user?.tier === plan.id ? 'Current Plan' : plan.id === 'basic' ? 'Get Started' : 'Unlock Now'}
                   </Button>
                 </CardContent>
               </Card>
             </motion.div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </motion.div>
   );
 };

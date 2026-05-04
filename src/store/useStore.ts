@@ -110,6 +110,10 @@ export const useStore = create<AppState>()(
           enabled: false,
           start: '22:00',
           end: '07:00'
+        },
+        dataSync: {
+          autoSync: true,
+          lastSynced: new Date().toISOString()
         }
       },
       isPremium: false,
@@ -286,7 +290,21 @@ export const useStore = create<AppState>()(
 
       syncData: async () => {
         // Simulate cloud sync
-        return new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            dataSync: {
+              ...state.settings.dataSync,
+              lastSynced: new Date().toISOString()
+            }
+          }
+        }));
+        
+        toast.success("Cloud Synchronization Successful", {
+          description: "All your medical records and schedules are up to date."
+        });
       },
 
       addChatMessage: (message) => set((state) => ({
@@ -397,8 +415,9 @@ export const useStore = create<AppState>()(
       },
 
       generateReminders: () => {
-        const { medicines, reminders, addReminder } = get();
+        const { medicines, reminders } = get();
         const today = new Date();
+        const newReminders: Reminder[] = [];
         
         medicines.forEach(med => {
           for (let i = 0; i < 7; i++) {
@@ -406,9 +425,11 @@ export const useStore = create<AppState>()(
             currentDate.setDate(today.getDate() + i);
             const dateStr = currentDate.toISOString().split('T')[0];
 
-            // Check if reminders for this med and date already exist
-            const exists = reminders.some(r => r.medicineId === med.id && r.date === dateStr);
-            if (exists) continue;
+            // Check if reminders for this med and date already exist in store or new batch
+            const existsInStore = reminders.some(r => r.medicineId === med.id && r.date === dateStr);
+            const existsInNew = newReminders.some(r => r.medicineId === med.id && r.date === dateStr);
+            
+            if (existsInStore || existsInNew) continue;
 
             let shouldAdd = false;
             if (med.frequency === 'Daily' || med.frequency === 'Twice Daily' || med.frequency === 'Three Times Daily') {
@@ -439,7 +460,7 @@ export const useStore = create<AppState>()(
 
             if (shouldAdd) {
               med.times.forEach(time => {
-                addReminder({
+                newReminders.push({
                   id: Math.random().toString(36).substr(2, 9),
                   profileId: med.profileId,
                   medicineId: med.id,
@@ -451,6 +472,12 @@ export const useStore = create<AppState>()(
             }
           }
         });
+
+        if (newReminders.length > 0) {
+          set((state) => ({
+            reminders: [...state.reminders, ...newReminders]
+          }));
+        }
       },
     }),
     {

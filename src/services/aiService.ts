@@ -1,5 +1,5 @@
 
-import { callTogetherAI } from "./togetherService";
+import { callGemini } from "./geminiService";
 import { Medicine, Lifestyle } from "../types";
 
 export interface ExtractedMedInfo {
@@ -24,22 +24,23 @@ export interface ExtractedMedInfo {
 }
 
 export const extractMedicineInfo = async (base64Image: string, mimeType: string): Promise<ExtractedMedInfo[]> => {
-  // Using llava-v1.6-13b for vision tasks.
   const messages = [
     {
       role: "user",
       content: [
-        { type: "text", text: "Extract ALL medicine details from this prescription or medicine label. A prescription may contain multiple medications. For each medication, provide the name, dosage, type (pill, capsule, liquid, injection, topical), frequency, suggested reminder times (in HH:mm format), expiry date (if visible, in YYYY-MM-DD format), total stock or quantity (if visible, as a number), and any specific instructions. Also, provide a confidence score (0.0 to 1.0) for each extracted field based on how clearly it is visible in the image. Return as JSON array." },
+        { type: "text", text: "Extract ALL medicine details from this prescription or medicine label. A prescription may contain multiple medications. For each medication, provide the name, dosage, type (pill, capsule, liquid, injection, topical), frequency, suggested reminder times (in HH:mm format), expiry date (if visible, in YYYY-MM-DD format), total stock or quantity (if visible, as a number), and any specific instructions. Also, provide a confidence score (0.0 to 1.0) for each extracted field based on how clearly it is visible in the image. Return as JSON array of objects without any markdown formatting or code blocks." },
         { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } }
       ],
     },
   ];
   
-  const response = await callTogetherAI(messages, "llava-hf/llava-v1.6-mistral-7b-hf");
+  const response = await callGemini(messages);
   try {
-    return JSON.parse(response || "[]");
+    // Basic cleaning to ensure we only have the JSON
+    const jsonStr = response?.replace(/```json/g, '').replace(/```/g, '').trim() || "[]";
+    return JSON.parse(jsonStr);
   } catch (error) {
-    console.error("Failed to parse Together AI response:", error);
+    console.error("Failed to parse Gemini response:", error);
     throw new Error("Failed to extract medicine information");
   }
 };
@@ -48,15 +49,16 @@ export const getMedicineRecommendations = async (name: string): Promise<Partial<
   const messages = [
     {
       role: "user",
-      content: `Provide a recommended schedule (dosage, frequency, and times in HH:mm format) and instructions for the medicine: ${name}. Return as JSON with properties: dosage, frequency, times (array of strings), and instructions.`,
+      content: `Provide a recommended schedule (dosage, frequency, and times in HH:mm format) and instructions for the medicine: ${name}. Return as raw JSON with properties: dosage, frequency, times (array of strings), and instructions. No markdown.`,
     },
   ];
   
-  const response = await callTogetherAI(messages);
+  const response = await callGemini(messages);
   try {
-    return JSON.parse(response || "{}");
+    const jsonStr = response?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
+    return JSON.parse(jsonStr);
   } catch (error) {
-    console.error("Failed to parse Together AI response:", error);
+    console.error("Failed to parse Gemini response:", error);
     throw new Error("Failed to get AI recommendations");
   }
 };
@@ -73,9 +75,9 @@ export const getChatResponse = async (history: { role: 'user' | 'assistant', con
   Guidelines:
   1. Be empathetic, professional, and clear.
   2. If a user asks about missed doses, give general advice but emphasize consulting a doctor.
-  3. Use the current context to provide personalized answers (e.g., "I see you have Paracetamol scheduled for 8:00 PM").
+  3. Use the current context to provide personalized answers.
   4. Always include a disclaimer that you are an AI, not a doctor.
-  5. Keep responses concise and formatted with bullet points if needed.`;
+  5. Keep responses concise and formatted with markdown if needed.`;
 
   const messages = [
     { role: "system", content: systemInstruction },
@@ -83,7 +85,7 @@ export const getChatResponse = async (history: { role: 'user' | 'assistant', con
     { role: "user", content: currentMessage }
   ];
 
-  return await callTogetherAI(messages);
+  return await callGemini(messages);
 };
 
 export const generateLogo = async (prompt: string): Promise<string> => {
@@ -115,12 +117,12 @@ export const getSmartSchedule = async (
   Provide suggested times (HH:mm format), reasoning based on absorption/efficacy, and any lifestyle adjustments. Return as JSON.`;
 
   const messages = [{ role: "user", content: prompt }];
-  const response = await callTogetherAI(messages);
+  const response = await callGemini(messages as any);
   
   try {
     return JSON.parse(response || "{}");
   } catch (error) {
-    console.error("Failed to parse Together AI response:", error);
+    console.error("Failed to parse Gemini response:", error);
     throw new Error("Failed to generate smart schedule");
   }
 };

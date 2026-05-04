@@ -14,11 +14,14 @@
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   
-  --color-muted: #f8fafc;
-  --color-muted-foreground: #64748b;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
   
-  --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   
   --radius-xl: 1rem; /* 16px */
   --radius-2xl: 1.25rem;
@@ -28,14 +31,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 
 :root {
-  --background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+  --background: #F8FAFC;
   --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
   --soft-shadow: 0px 4px 12px rgba(0,0,0,0.05);
   --premium-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.15);
 }
 
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f1f5f9;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --soft-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+  --premium-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;

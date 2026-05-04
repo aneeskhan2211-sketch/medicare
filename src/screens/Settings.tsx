@@ -3,32 +3,53 @@ import { useStore } from '../store/useStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock } from 'lucide-react';
+import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock, RefreshCw, Cloud } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 export const Settings = () => {
-  const { settings, updateSettings } = useStore();
+  const { settings, updateSettings, syncData } = useStore();
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = React.useState(false);
 
   const safeSettings = {
     notifications: settings?.notifications || { enabled: true, emailEnabled: true, pushEnabled: true, reminderSound: 'default' },
     security: settings?.security || { biometricEnabled: false, autoLock: false, twoFactorEnabled: false },
     darkMode: settings?.darkMode ?? false,
     language: settings?.language || 'en',
-    quietHours: settings?.quietHours || { enabled: false, start: '22:00', end: '07:00' }
+    quietHours: settings?.quietHours || { enabled: false, start: '22:00', end: '07:00' },
+    dataSync: settings?.dataSync || { autoSync: true, lastSynced: new Date().toISOString() }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncData();
+    } catch (error) {
+      toast.error("Sync failed. Please try again.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
     
   return (
-    <div className="space-y-6 p-4 text-slate-900">
-      <h2 className="text-2xl font-bold">Settings</h2>
-      
-      <Card className="rounded-[20px] shadow-sm">
-        <CardContent className="p-4 space-y-6">
+    <div className="h-full overflow-y-auto overflow-x-hidden touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="space-y-6 p-6 text-foreground min-h-full flex flex-col">
+        <h2 className="text-2xl font-bold font-display px-2">Settings</h2>
+        
+        <Card className="rounded-[32px] card-shadow border-none bg-card overflow-hidden flex-1 mb-6">
+          <CardContent className="p-6 space-y-8">
           {/* Notifications */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-slate-500 uppercase">Notifications</h3>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Bell className="text-primary" size={18}/>
-                <span className="text-sm font-medium">Enable All</span>
+          <div className="space-y-5">
+            <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Notifications</h3>
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <Bell className="text-primary" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Enable All Notifications</span>
+                </div>
+                <p className="text-[11px] text-slate-400 pl-8 leading-tight">Master switch for all medicine and task alerts</p>
               </div>
               <Switch 
                 checked={safeSettings.notifications.enabled}
@@ -37,117 +58,163 @@ export const Settings = () => {
             </div>
             
             {safeSettings.notifications.enabled && (
-              <>
-                <div className="flex items-center justify-between pl-8">
-                  <span className="text-sm font-medium">Email Notifications</span>
+              <div className="space-y-4 pl-8 pt-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-foreground/80">Email Notifications</span>
+                    <p className="text-[10px] text-slate-400 leading-tight">Receive daily summaries in your inbox</p>
+                  </div>
                   <Switch 
                     checked={safeSettings.notifications.emailEnabled}
                     onCheckedChange={(checked) => updateSettings({ notifications: { ...safeSettings.notifications, emailEnabled: checked } })}
                   />
                 </div>
-                <div className="flex items-center justify-between pl-8">
-                  <span className="text-sm font-medium">Push Notifications</span>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-foreground/80">Push Notifications</span>
+                    <p className="text-[10px] text-slate-400 leading-tight">Get real-time alerts on this device</p>
+                  </div>
                   <Switch 
                     checked={safeSettings.notifications.pushEnabled}
                     onCheckedChange={(checked) => updateSettings({ notifications: { ...safeSettings.notifications, pushEnabled: checked } })}
                   />
                 </div>
-              </>
+              </div>
             )}
 
             <div className="space-y-2 pt-2">
-              <span className="text-sm font-medium">Reminder Sound</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-bold text-foreground">Reminder Sound</span>
+                <p className="text-[11px] text-slate-400 leading-tight">Choose the alert tone for your medications</p>
+              </div>
               <select 
                 value={safeSettings.notifications.reminderSound} 
                 onChange={(e) => updateSettings({ notifications: { ...safeSettings.notifications, reminderSound: e.target.value } })}
-                className="w-full bg-slate-50 rounded-lg p-2 text-sm font-medium border border-slate-200 outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-sm font-bold border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
               >
-                <option value="default">Default</option>
-                <option value="chime">Chime</option>
-                <option value="alarm">Alarm</option>
+                <option value="default">Default System Tone</option>
+                <option value="chime">Gentle Chime</option>
+                <option value="alarm">Loud Alarm</option>
               </select>
             </div>
           </div>
           
           {/* Security */}
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold text-sm text-slate-500 uppercase">Security</h3>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Fingerprint className="text-primary" size={18}/>
-                <span className="text-sm font-medium">Biometric Auth</span>
+          <div className="space-y-5 pt-5 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Security & Privacy</h3>
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <Fingerprint className="text-indigo-500" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Biometric Auth</span>
+                </div>
+                <p className="text-[11px] text-slate-400 pl-8 leading-tight">Use Face ID or Fingerprint for faster login</p>
               </div>
               <Switch 
                 checked={safeSettings.security.biometricEnabled}
-                onCheckedChange={(checked) => updateSettings({ security: { ...safeSettings.security, biometricEnabled: checked } })}
+                onCheckedChange={(checked) => {
+                    updateSettings({ security: { ...safeSettings.security, biometricEnabled: checked } });
+                    if (checked) toast.success('Biometric authentication enabled');
+                }}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Lock className="text-primary" size={18}/>
-                <span className="text-sm font-medium">Auto-Lock</span>
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <Lock className="text-indigo-500" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Auto-Lock</span>
+                </div>
+                <p className="text-[11px] text-slate-400 pl-8 leading-tight">Automatically lock the app when closed</p>
               </div>
               <Switch 
                 checked={safeSettings.security.autoLock}
-                onCheckedChange={(checked) => updateSettings({ security: { ...safeSettings.security, autoLock: checked } })}
+                onCheckedChange={(checked) => {
+                    updateSettings({ security: { ...safeSettings.security, autoLock: checked } });
+                    if (checked) toast.success('Auto-lock protection active');
+                }}
               />
             </div>
           </div>
 
           {/* General */}
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold text-sm text-slate-500 uppercase">General</h3>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Moon className="text-primary" size={18}/>
-                  <span className="text-sm font-medium">Dark Mode</span>
+          <div className="space-y-5 pt-5 border-t border-border transition-colors">
+            <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest">General Preferences</h3>
+            <div className="flex items-start justify-between">
+                <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-3">
+                        <Moon className={cn("transition-colors", safeSettings.darkMode ? "text-amber-400" : "text-slate-400")} size={18}/>
+                        <span className="text-sm font-bold text-foreground">Dark Mode</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Switch between light and dark themes for better comfort</p>
                 </div>
                 <Switch 
                   checked={safeSettings.darkMode}
-                  onCheckedChange={(checked) => updateSettings({ darkMode: checked })}
+                  onCheckedChange={(checked) => {
+                      updateSettings({ darkMode: checked });
+                      toast.info(checked ? 'Dark mode activated' : 'Light mode activated');
+                  }}
                 />
             </div>
 
             <div className="space-y-2">
-              <span className="text-sm font-medium flex items-center gap-2"><Languages size={18}/> Language</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                    <Languages className="text-primary" size={18}/>
+                    <span className="text-sm font-bold text-foreground">Language</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Translate the interface to your primary language</p>
+              </div>
               <select 
                 value={safeSettings.language} 
-                onChange={(e) => updateSettings({ language: e.target.value })}
-                className="w-full bg-slate-50 rounded-lg p-2 text-sm font-medium border border-slate-200 outline-none focus:ring-2 focus:ring-primary"
+                onChange={(e) => {
+                    updateSettings({ language: e.target.value });
+                    const langMap: any = { en: 'English', es: 'Spanish', fr: 'French', hi: 'Hindi' };
+                    toast.success(`Language changed to ${langMap[e.target.value] || e.target.value}`);
+                }}
+                className="w-full bg-muted rounded-xl p-4 text-sm font-bold border border-border outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all text-foreground"
               >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
+                <option value="en">English (US)</option>
+                <option value="es">Español (ES)</option>
+                <option value="fr">Français (FR)</option>
+                <option value="hi">हिन्दी (India)</option>
               </select>
             </div>
             
             <div className="pt-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <Clock className="text-primary" size={18}/>
-                  <span className="text-sm font-medium">Quiet Hours</span>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-3">
+                      <Clock className="text-primary" size={18}/>
+                      <span className="text-sm font-bold text-foreground">Quiet Hours</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Silence non-essential notifications while you sleep</p>
                 </div>
                 <Switch 
                   checked={safeSettings.quietHours.enabled}
-                  onCheckedChange={(checked) => updateSettings({ quietHours: { ...safeSettings.quietHours, enabled: checked } })}
+                  onCheckedChange={(checked) => {
+                      updateSettings({ quietHours: { ...safeSettings.quietHours, enabled: checked } });
+                      if (checked) toast.info('Quiet hours are now active');
+                  }}
                 />
               </div>
               
               {safeSettings.quietHours.enabled && (
-                <div className="flex gap-4">
-                  <div className="space-y-1 w-full">
-                    <span className="text-xs font-medium text-slate-500">Start Time</span>
+                <div className="flex gap-4 pl-8 mt-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2 w-full">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Quiet From</span>
                     <Input 
                       type="time" 
                       value={safeSettings.quietHours.start}
+                      className="rounded-xl border-border bg-muted h-12 text-sm font-bold text-foreground"
                       onChange={(e) => updateSettings({ quietHours: { ...safeSettings.quietHours, start: e.target.value } })}
                     />
                   </div>
-                  <div className="space-y-1 w-full">
-                    <span className="text-xs font-medium text-slate-500">End Time</span>
+                  <div className="space-y-2 w-full">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Until</span>
                     <Input 
                       type="time" 
                       value={safeSettings.quietHours.end}
+                      className="rounded-xl border-border bg-muted h-12 text-sm font-bold text-foreground"
                       onChange={(e) => updateSettings({ quietHours: { ...safeSettings.quietHours, end: e.target.value } })}
                     />
                   </div>
@@ -155,8 +222,69 @@ export const Settings = () => {
               )}
             </div>
           </div>
+
+          {/* Data Sync */}
+          <div className="space-y-5 pt-5 border-t border-border transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-1">Cloud Services</h3>
+                <div className="flex items-center gap-3 mt-1">
+                  <Cloud className="text-sky-500" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Data Synchronization</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-foreground/70">Last Synced</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {safeSettings.dataSync.lastSynced 
+                      ? format(new Date(safeSettings.dataSync.lastSynced), 'do MMM, h:mm a') 
+                      : 'Never synchronized'}
+                  </span>
+                </div>
+                <button 
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-bold rounded-full transition-all active:scale-95 disabled:opacity-50",
+                    isSyncing && "animate-pulse"
+                  )}
+                >
+                  <RefreshCw size={14} className={cn(isSyncing && "animate-spin")} />
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-border/50 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-foreground/80">Auto-Backup</span>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Sync automatically when you open the app</p>
+                </div>
+                <Switch 
+                  checked={safeSettings.dataSync.autoSync}
+                  onCheckedChange={(checked) => updateSettings({ dataSync: { ...safeSettings.dataSync, autoSync: checked } })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* About */}
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col items-center gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                <img src="/logo.png" alt="MediMind" className="w-8 h-8 opacity-50 grayscale dark:invert" onError={(e) => e.currentTarget.src = 'https://cdn-icons-png.flaticon.com/512/3062/3062634.png'} />
+            </div>
+            <div className="text-center">
+                <p className="text-xs font-bold text-foreground">MediMind AI v2.4.0</p>
+                <p className="text-[10px] text-slate-400 font-medium leading-tight">Your Smart Health Records & Medication Companion</p>
+            </div>
+            <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-2">© 2026 MediMind Health Inc. All rights reserved.</p>
+          </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

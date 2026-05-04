@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ShoppingCart, Pill } from 'lucide-react';
+import { ShoppingCart, Pill, X } from 'lucide-react';
 
 interface PharmaMedicine {
   id: string;
@@ -24,9 +24,15 @@ export const Marketplace: React.FC<{onClose: () => void}> = ({ onClose }) => {
   };
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Marketplace</h2>
-      <div className="grid gap-4">
+    <div className="h-full flex flex-col bg-background">
+      <header className="p-6 bg-card border-b border-border flex justify-between items-center transition-colors">
+        <h2 className="text-2xl font-bold text-foreground">Marketplace</h2>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full hover:bg-muted">
+          <X size={24} />
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto w-full touch-pan-y min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="grid gap-4 p-6">
         {pharmacyMedicines.map(med => (
           <Card key={med.id} className="p-4 rounded-2xl">
             <CardContent className="flex justify-between items-center p-0">
@@ -45,6 +51,7 @@ export const Marketplace: React.FC<{onClose: () => void}> = ({ onClose }) => {
             </CardContent>
           </Card>
         ))}
+      </div>
       </div>
     </div>
   );

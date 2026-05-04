@@ -138,4 +138,8 @@ export interface Settings {
     start: string;
     end: string;
   };
+  dataSync: {
+    autoSync: boolean;
+    lastSynced?: string;
+  };
 }

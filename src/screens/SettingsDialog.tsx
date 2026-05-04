@@ -10,7 +10,7 @@ interface SettingsDialogProps {
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md w-full rounded-[32px] p-0 overflow-hidden">
+      <DialogContent className="max-w-md w-full max-h-[85vh] rounded-[32px] p-0 overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <SettingsComponent />
       </DialogContent>
