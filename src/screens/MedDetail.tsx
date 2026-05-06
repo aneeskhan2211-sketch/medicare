@@ -27,6 +27,8 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
   const [editedIntervalDays, setEditedIntervalDays] = useState(medicine.intervalDays?.toString() || '2');
   const [editedReminderTone, setEditedReminderTone] = useState(medicine.reminderTone || 'standard');
   const [editedExpiryDate, setEditedExpiryDate] = useState(medicine.expiryDate ? format(new Date(medicine.expiryDate), 'yyyy-MM-dd') : '');
+  const [editedPrescriptionNumber, setEditedPrescriptionNumber] = useState(medicine.prescriptionNumber || '');
+  const [editedDoctorName, setEditedDoctorName] = useState(medicine.doctorName || '');
   
   const medReminders = reminders
     .filter(r => r.medicineId === medicine.id)
@@ -47,7 +49,9 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
       intervalDays: editedFrequency === 'Every X Days' ? parseInt(editedIntervalDays) : undefined,
       instructions: editedInstructions,
       reminderTone: editedReminderTone,
-      expiryDate: editedExpiryDate ? new Date(editedExpiryDate).toISOString() : undefined
+      expiryDate: editedExpiryDate ? new Date(editedExpiryDate).toISOString() : undefined,
+      prescriptionNumber: editedPrescriptionNumber,
+      doctorName: editedDoctorName
     });
     
     setIsEditing(false);
@@ -87,7 +91,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                 <div className="pt-2">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Dosage</label>
                   <Input 
-                    value={editedDosage}
+                    value={editedDosage || ''}
                     onChange={(e) => setEditedDosage(e.target.value)}
                     className="mt-1 rounded-xl border-border bg-muted text-foreground"
                     placeholder="e.g. 1000 IU"
@@ -142,6 +146,26 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   </CardContent>
                 </Card>
               </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {medicine.prescriptionNumber && (
+                  <Card className="border-none bg-muted/50 rounded-2xl shadow-sm">
+                    <CardContent className="p-4 space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Prescription #</p>
+                      <p className="font-semibold text-foreground">{medicine.prescriptionNumber}</p>
+                    </CardContent>
+                  </Card>
+                )}
+                {medicine.doctorName && (
+                  <Card className="border-none bg-muted/50 rounded-2xl shadow-sm">
+                    <CardContent className="p-4 space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Doctor</p>
+                      <p className="font-semibold text-foreground">{medicine.doctorName}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
               {medicine.expiryDate && (
                 <Card className="border-none bg-muted/50 rounded-2xl shadow-sm">
                   <CardContent className="p-4 space-y-1 flex items-center justify-between">
@@ -167,7 +191,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Expiration Date</label>
                 <Input 
                   type="date"
-                  value={editedExpiryDate}
+                  value={editedExpiryDate || ''}
                   onChange={(e) => setEditedExpiryDate(e.target.value)}
                   className="rounded-xl border-border bg-muted text-foreground h-12"
                 />
@@ -194,7 +218,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Repeat every (Days)</label>
                   <Input 
                     type="number"
-                    value={editedIntervalDays}
+                    value={editedIntervalDays || ''}
                     onChange={(e) => setEditedIntervalDays(e.target.value)}
                     className="rounded-xl border-border bg-muted text-foreground h-12"
                     min="1"
@@ -213,6 +237,26 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   <option value="standard">Standard Alert</option>
                   <option value="loud">Loud Alarm</option>
                 </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Prescription Number</label>
+                <Input 
+                  value={editedPrescriptionNumber || ''}
+                  onChange={(e) => setEditedPrescriptionNumber(e.target.value)}
+                  className="rounded-xl border-border bg-muted text-foreground h-12"
+                  placeholder="e.g. RX-12345"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Doctor's Name</label>
+                <Input 
+                  value={editedDoctorName || ''}
+                  onChange={(e) => setEditedDoctorName(e.target.value)}
+                  className="rounded-xl border-border bg-muted text-foreground h-12"
+                  placeholder="e.g. Dr. Arpan"
+                />
               </div>
             </div>
           )}
@@ -245,7 +289,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   <div key={index} className="flex items-center gap-2">
                     <Input 
                       type="time"
-                      value={time}
+                      value={time || ''}
                       onChange={(e) => updateTime(index, e.target.value)}
                       className="rounded-xl border-border bg-muted text-foreground h-12"
                     />
@@ -288,7 +332,7 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                     <span className="capitalize font-bold">{medicine.mealInstruction || "Not specified"}</span>
                   </div>
                   <Textarea 
-                    value={editedInstructions}
+                    value={editedInstructions || ''}
                     onChange={(e) => setEditedInstructions(e.target.value)}
                     placeholder="e.g. Take with food, avoid alcohol..."
                     className="rounded-2xl border-border bg-muted text-foreground min-h-[120px]"

@@ -14,11 +14,16 @@ interface ReviewScanProps {
   meds: any[];
   onComplete: () => void;
   onCancel: () => void;
+  onEdit: (med: any) => void;
 }
 
-export const ReviewScan: React.FC<ReviewScanProps> = ({ meds: initialMeds, onComplete, onCancel }) => {
+export const ReviewScan: React.FC<ReviewScanProps> = ({ meds: initialMeds, onComplete, onCancel, onEdit }) => {
   const { addMedicine, activeProfileId, user } = useStore();
   const [meds, setMeds] = useState(initialMeds.map((m, i) => ({ ...m, id: i, selected: true })));
+
+  const handleEdit = (med: any) => {
+    onEdit(med);
+  };
 
   const handleToggle = (id: number) => {
     setMeds(meds.map(m => m.id === id ? { ...m, selected: !m.selected } : m));
@@ -92,67 +97,49 @@ export const ReviewScan: React.FC<ReviewScanProps> = ({ meds: initialMeds, onCom
           {meds.map((med) => (
             <motion.div
               key={med.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -20 }}
               className={cn(
-                "group relative bg-white rounded-3xl p-4 card-shadow border-2 transition-all",
-                med.selected ? "border-indigo-500" : "border-transparent opacity-60"
+                "group relative bg-white rounded-2xl p-3 card-shadow border border-slate-100 transition-all",
+                med.selected ? "border-indigo-200 ring-2 ring-indigo-50" : "opacity-60"
               )}
             >
-              <div className="flex gap-4">
+              <div className="flex items-center gap-3">
                 <div 
                   onClick={() => handleToggle(med.id)}
                   className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer transition-all",
-                    med.selected ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400"
+                    "w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all shrink-0",
+                    med.selected ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-400"
                   )}
                 >
-                  {med.selected ? <Check size={24} /> : <Pill size={24} />}
+                  {med.selected ? <Check size={18} /> : <Plus size={18} />}
                 </div>
                 
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div className="flex flex-col">
-                      <h3 className="font-bold text-slate-900">{med.name}</h3>
-                      {med.confidence && (
-                        <div className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded-full border w-fit mt-1 uppercase tracking-wider",
-                          getConfidenceColor(getAverageConfidence(med.confidence))
-                        )}>
-                          {Math.round(getAverageConfidence(med.confidence) * 100)}% Confidence
-                        </div>
-                      )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-900 text-sm truncate">{med.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-medium text-slate-500">{med.dosage}</span>
+                        <span className="text-[10px] text-slate-300">•</span>
+                        <span className="text-[10px] font-medium text-slate-500">{med.frequency}</span>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => handleRemove(med.id)}
-                      className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <p className="text-sm text-slate-500">{med.dosage} • {med.frequency}</p>
-                  
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {med.stock && (
-                      <Badge variant="outline" className="text-[10px] border-indigo-100 text-indigo-600">
-                        Stock: {med.stock}
-                      </Badge>
-                    )}
-                    {med.expiryDate && (
-                      <Badge variant="outline" className="text-[10px] border-red-100 text-red-600">
-                        Exp: {med.expiryDate}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {med.times?.map((time: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="bg-slate-50 text-slate-500 text-[10px] flex gap-1 items-center">
-                        <Clock size={10} />
-                        {time}
-                      </Badge>
-                    ))}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <button 
+                        onClick={() => handleRemove(med.id)}
+                        className="text-slate-200 hover:text-red-500 transition-colors p-1"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(med)}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg transition-all"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

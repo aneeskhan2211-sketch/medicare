@@ -32,8 +32,10 @@ interface SmartScheduleProps {
 }
 
 export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept, onCancel }) => {
-  const { profiles, activeProfileId } = useStore();
+  const { profiles, activeProfileId, medicines, getAdherenceData } = useStore();
   const activeProfile = profiles.find(p => p.id === activeProfileId);
+  const adherenceData = getAdherenceData();
+  const profileMeds = medicines.filter(m => m.profileId === activeProfileId);
   
   const [isLoading, setIsLoading] = useState(true);
   const [suggestion, setSuggestion] = useState<SmartScheduleResponse | null>(null);
@@ -56,7 +58,7 @@ export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept
     const fetchSuggestion = async () => {
       try {
         setIsLoading(true);
-        const result = await getSmartSchedule(medicine, lifestyle);
+        const result = await getSmartSchedule(medicine, lifestyle, profileMeds, adherenceData);
         setSuggestion(result);
         setEditedTimes(result.suggestedTimes);
       } catch (error) {
@@ -68,7 +70,7 @@ export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept
     };
 
     fetchSuggestion();
-  }, [medicine, lifestyle]);
+  }, [medicine, lifestyle, profileMeds.length]);
 
   const handleTimeChange = (index: number, value: string) => {
     const newTimes = [...editedTimes];
@@ -123,30 +125,53 @@ export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6 pb-32">
           {/* Lifestyle Context */}
-          <Card className="p-4 border-none shadow-sm bg-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Activity size={80} />
-            </div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Lifestyle Context</h4>
+          <div className="grid gap-4">
+            <Card className="p-4 border-none shadow-sm bg-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Activity size={80} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Your Lifestyle Context</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <Coffee className="text-amber-500" size={16} />
+                  <span className="text-sm font-medium text-slate-700">Breakfast: {lifestyle.mealTimes.breakfast}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sun className="text-orange-500" size={16} />
+                  <span className="text-sm font-medium text-slate-700">Lunch: {lifestyle.mealTimes.lunch}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Moon className="text-indigo-500" size={16} />
+                  <span className="text-sm font-medium text-slate-700">Dinner: {lifestyle.mealTimes.dinner}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Activity className="text-emerald-500" size={16} />
+                  <span className="text-sm font-medium text-slate-700 capitalize">{lifestyle.activityLevel} Activity</span>
+                </div>
+              </div>
+            </Card>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <Coffee className="text-amber-500" size={16} />
-                <span className="text-sm font-medium text-slate-700">Breakfast: {lifestyle.mealTimes.breakfast}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sun className="text-orange-500" size={16} />
-                <span className="text-sm font-medium text-slate-700">Lunch: {lifestyle.mealTimes.lunch}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Moon className="text-indigo-500" size={16} />
-                <span className="text-sm font-medium text-slate-700">Dinner: {lifestyle.mealTimes.dinner}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Activity className="text-emerald-500" size={16} />
-                <span className="text-sm font-medium text-slate-700 capitalize">{lifestyle.activityLevel} Activity</span>
-              </div>
+              <Card className="p-4 border-none shadow-sm bg-white">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Other Meds</h4>
+                <div className="flex items-center gap-2">
+                   <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-100 rounded-lg">
+                    {profileMeds.length} Active
+                   </Badge>
+                   <span className="text-[10px] text-slate-400 font-medium">Analyzed for interactions</span>
+                </div>
+              </Card>
+              <Card className="p-4 border-none shadow-sm bg-white">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Adherence</h4>
+                <div className="flex items-center gap-2">
+                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 rounded-lg">
+                    {adherenceData.length > 0 ? `${(adherenceData.reduce((acc, curr) => acc + (curr.taken/curr.total), 0) / adherenceData.length * 100).toFixed(0)}%` : 'New'}
+                   </Badge>
+                   <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Optimizing pattern</span>
+                </div>
+              </Card>
             </div>
-          </Card>
+          </div>
 
           {/* AI Reasoning */}
           <motion.div
@@ -199,7 +224,7 @@ export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept
                     </div>
                     <Input
                       type="time"
-                      value={time}
+                      value={time || ''}
                       onChange={(e) => handleTimeChange(index, e.target.value)}
                       className="h-14 pl-12 rounded-2xl border-none shadow-sm bg-white text-lg font-medium focus-visible:ring-indigo-600"
                     />

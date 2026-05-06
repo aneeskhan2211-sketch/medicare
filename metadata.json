@@ -1,5 +1,5 @@
 {
   "name": "Medicare",
   "description": "Track medicines, manage family health, and get AI-powered reminders — all in one place.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["camera", "bluetooth"]
 }

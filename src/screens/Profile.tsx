@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { User, Settings, Shield, Users, BarChart3, FileText, LogOut, Crown, ChevronRight, Cloud, Flame, Bell, Phone, Plus, UserPlus, Heart, Activity, CreditCard, HelpCircle, Wallet as WalletIcon } from 'lucide-react';
+import { User, Settings, Shield, Users, BarChart3, FileText, LogOut, Crown, ChevronRight, Cloud, Flame, Bell, Phone, Plus, UserPlus, Heart, Activity, CreditCard, HelpCircle, Wallet as WalletIcon, Stethoscope, Syringe, Pill, Sun, Moon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SettingsDialog } from './SettingsDialog';
+import { MedicalBackground } from '../components/MedicalBackground';
 
 interface ProfileProps {
   onShowPaywall: () => void;
@@ -19,7 +20,7 @@ interface ProfileProps {
 }
 
 export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding, onShowWallet }) => {
-  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile, addCoins } = useStore();
+  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile, addCoins, settings, updateSettings } = useStore();
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const [showSettings, setShowSettings] = useState(false);
 
@@ -55,27 +56,35 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
   };
 
   return (
-    <div className="h-full flex flex-col bg-background transition-colors duration-300">
-        {/* Background Watermark */}
-        <div className="absolute top-1/2 right-0 w-64 h-64 opacity-[0.03] pointer-events-none -mr-20 filter blur-[2px]">
-          <Shield size={256} className="text-foreground" />
-        </div>
-        <div className="absolute bottom-20 left-0 w-48 h-48 opacity-[0.03] pointer-events-none -ml-10 filter blur-[2px]">
-          <Heart size={192} className="text-foreground" />
-        </div>
+    <div className="h-full flex flex-col transition-colors duration-300 relative overflow-hidden">
+      <MedicalBackground />
 
-        <header className="p-6 bg-background/80 backdrop-blur-md sticky top-0 z-30 border-b border-border flex justify-between items-center transition-colors">
+      <header className="p-6 bg-background/80 backdrop-blur-md sticky top-0 z-30 border-b border-border flex justify-between items-center transition-colors">
         <h1 className="text-2xl font-display font-bold text-foreground">Profile</h1>
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setShowSettings(true)}
-          className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground transition-colors"
-        >
-          <Settings size={20} />
-        </motion.button>
+        <div className="flex items-center gap-3">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              const newMode = !settings.darkMode;
+              updateSettings({ darkMode: newMode });
+              toast.info(newMode ? 'Dark mode activated' : 'Light mode activated');
+            }}
+            className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors border border-border"
+          >
+            {settings.darkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowSettings(true)}
+            className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground transition-colors"
+          >
+            <Settings size={20} />
+          </motion.button>
+        </div>
       </header>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 relative overflow-hidden">
         <div className="p-6 space-y-8 pb-32 relative z-10">
           {/* User Profile Header */}
           <section className="flex flex-col items-center text-center space-y-4">
@@ -105,14 +114,14 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             </div>
             
             <div className="flex gap-4 w-full max-w-xs mx-auto">
-              <div className="flex-1 bg-card p-4 rounded-[24px] shadow-sm border border-border flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-4 rounded-[24px] premium-card border border-border flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <Flame size={20} className="text-orange-500 fill-orange-500" />
                   <span className="text-xl font-bold text-foreground">{user?.streak || 0}</span>
                 </div>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Day Streak</span>
               </div>
-              <div className="flex-1 bg-card p-4 rounded-[24px] shadow-sm border border-border flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-4 rounded-[24px] premium-card border border-border flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] font-bold text-white">C</div>
                   <span className="text-xl font-bold text-foreground">{user?.coins || 0}</span>
@@ -127,7 +136,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             whileHover={{ scale: 1.02 }}
             onClick={onShowPaywall}
             className={cn(
-              "rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden cursor-pointer",
+              "rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden cursor-pointer animate-pulse-green",
               user?.tier === 'basic' ? "bg-gradient-to-br from-primary to-primary/80" : 
               user?.tier === 'pro' ? "bg-gradient-to-br from-indigo-500 to-indigo-700" :
               user?.tier === 'premium' ? "bg-gradient-to-br from-purple-600 to-purple-800" :
@@ -198,7 +207,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
           {/* Emergency Section */}
           <section className="space-y-4">
             <h3 className="font-display font-bold text-lg text-foreground px-1">Emergency</h3>
-            <Card className="border-none bg-destructive/10 rounded-[20px] overflow-hidden">
+            <Card className="border-none bg-destructive/10 rounded-[20px] premium-card overflow-hidden">
               <CardContent className="p-6 flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center text-destructive shadow-sm">
                   <Phone size={28} />
@@ -207,7 +216,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
                   <h4 className="font-bold text-foreground">{activeProfile.emergencyContact?.name || 'Emergency Contact'}</h4>
                   <p className="text-xs text-muted-foreground font-medium">{activeProfile.emergencyContact?.phone || 'Not set'}</p>
                 </div>
-                <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-2xl px-6 h-12 font-bold shadow-lg shadow-destructive/20">
+                <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-2xl px-6 h-12 font-bold shadow-lg shadow-destructive/20 animate-pulse-green">
                   Call
                 </Button>
               </CardContent>

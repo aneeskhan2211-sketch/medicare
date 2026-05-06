@@ -65,6 +65,8 @@ export interface Medicine {
   color: string;
   userId: string;
   image?: string;
+  prescriptionNumber?: string;
+  doctorName?: string;
 }
 
 export interface Reminder {
@@ -142,4 +144,61 @@ export interface Settings {
     autoSync: boolean;
     lastSynced?: string;
   };
+}
+
+export type VitalsSource = 'manual' | 'wearable' | 'bluetooth' | 'demo';
+
+export interface VitalSign {
+  id: string;
+  profileId: string;
+  userId: string;
+  type: 'blood_pressure' | 'glucose' | 'heart_rate' | 'spo2' | 'temperature' | 'weight';
+  value: string; // "120/80", "110", etc.
+  unit: string; // "mmHg", "mg/dL", "bpm", "%", "°C", "kg"
+  timestamp: string;
+  status: 'normal' | 'low' | 'high' | 'critical' | 'elevated';
+  source: VitalsSource | 'camera' | 'smartwatch';
+  deviceName?: string;
+  notes?: string;
+  confidenceScore?: number;
+}
+
+export interface HealthReport {
+  id: string;
+  profileId: string;
+  title: string;
+  date: string;
+  summary: string;
+  imageUrl?: string;
+  type: 'prescription' | 'lab_result' | 'scan' | 'other';
+}
+
+export interface Appointment {
+  id: string;
+  profileId: string;
+  doctorName: string;
+  specialty: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  status: 'upcoming' | 'completed' | 'cancelled';
+  notes?: string;
+  location?: string;
+}
+
+export interface Symptom {
+  id: string;
+  profileId: string;
+  userId: string;
+  name: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  timestamp: string;
+  notes?: string;
+}
+
+export interface InteractionCheck {
+  medicines: string[];
+  interactionFound: boolean;
+  severity: 'low' | 'moderate' | 'high' | 'critical';
+  details: string;
+  recommendation: string;
 }

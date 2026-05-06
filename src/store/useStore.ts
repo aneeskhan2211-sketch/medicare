@@ -1,5 +1,5 @@
 import { create } from 'zustand'; // I'll install zustand for easier state management
-import { Medicine, Reminder, User, ChatMessage, Profile, Task, Settings } from '../types';
+import { Medicine, Reminder, User, ChatMessage, Profile, Task, Settings, Lifestyle, AdherenceData, VitalSign, HealthReport, Appointment, Symptom } from '../types';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { addDays, addWeeks, addMonths, format, parseISO } from 'date-fns';
@@ -11,10 +11,14 @@ interface AppState {
   medicines: Medicine[];
   reminders: Reminder[];
   tasks: Task[];
+  appointments: Appointment[];
   settings: Settings;
   isPremium: boolean;
   chatHistory: ChatMessage[];
   isAuthenticated: boolean;
+  vitals: VitalSign[];
+  reports: HealthReport[];
+  symptoms: Symptom[];
   
   // Actions
   login: (email: string, name: string) => void;
@@ -33,8 +37,12 @@ interface AppState {
   addTask: (task: Task) => void;
   updateTaskStatus: (id: string, status: Task['status']) => void;
   deleteTask: (id: string) => void;
+  addAppointment: (appointment: Appointment) => void;
+  deleteAppointment: (id: string) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   syncData: () => Promise<void>;
+  updateLifestyle: (profileId: string, lifestyle: Lifestyle) => void;
+  getAdherenceData: () => AdherenceData[];
   addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChat: () => void;
   addCoins: (amount: number) => void;
@@ -45,6 +53,12 @@ interface AppState {
   incrementAiQuery: () => boolean;
   checkDailyLogin: () => void;
   generateReminders: () => void;
+  addVitalSign: (vital: VitalSign) => void;
+  deleteVitalSign: (id: string) => void;
+  addReport: (report: HealthReport) => void;
+  deleteReport: (id: string) => void;
+  addSymptom: (symptom: Symptom) => void;
+  deleteSymptom: (id: string) => void;
 }
 
 // Mock initial data
@@ -92,6 +106,7 @@ export const useStore = create<AppState>()(
           userId: 'user-1'
         }
       ],
+      appointments: [],
       settings: {
         notifications: {
           enabled: true,
@@ -126,6 +141,9 @@ export const useStore = create<AppState>()(
           timestamp: new Date().toISOString()
         }
       ],
+      vitals: [],
+      reports: [],
+      symptoms: [],
 
       login: (email, name) => set({
         user: {
@@ -283,6 +301,14 @@ export const useStore = create<AppState>()(
       deleteTask: (id) => set((state) => ({
         tasks: state.tasks.filter((t) => t.id !== id)
       })),
+
+      addAppointment: (appointment) => set((state) => ({
+        appointments: [...state.appointments, appointment]
+      })),
+
+      deleteAppointment: (id) => set((state) => ({
+        appointments: state.appointments.filter((a) => a.id !== id)
+      })),
       
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }
@@ -304,6 +330,28 @@ export const useStore = create<AppState>()(
         
         toast.success("Cloud Synchronization Successful", {
           description: "All your medical records and schedules are up to date."
+        });
+      },
+
+      updateLifestyle: (profileId, lifestyle) => set((state) => ({
+        profiles: state.profiles.map(p => p.id === profileId ? { ...p, lifestyle } : p)
+      })),
+
+      getAdherenceData: () => {
+        const { reminders } = get();
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          return d.toISOString().split('T')[0];
+        }).reverse();
+
+        return last7Days.map(date => {
+          const dayReminders = reminders.filter(r => r.date === date);
+          return {
+            date,
+            taken: dayReminders.filter(r => r.status === 'taken').length,
+            total: dayReminders.length
+          };
         });
       },
 
@@ -479,6 +527,12 @@ export const useStore = create<AppState>()(
           }));
         }
       },
+      addVitalSign: (vital) => set((state) => ({ vitals: [vital, ...state.vitals] })),
+      deleteVitalSign: (id) => set((state) => ({ vitals: state.vitals.filter(v => v.id !== id) })),
+      addReport: (report) => set((state) => ({ reports: [report, ...state.reports] })),
+      deleteReport: (id) => set((state) => ({ reports: state.reports.filter(r => r.id !== id) })),
+      addSymptom: (symptom) => set((state) => ({ symptoms: [symptom, ...state.symptoms] })),
+      deleteSymptom: (id) => set((state) => ({ symptoms: state.symptoms.filter(s => s.id !== id) })),
     }),
     {
       name: 'medimind-storage',

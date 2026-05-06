@@ -5,7 +5,6 @@ import { Meds } from './screens/Meds';
 import { AddMed } from './screens/AddMed';
 import { CalendarView } from './screens/Calendar';
 import { Profile } from './screens/Profile';
-import { Analytics } from './screens/Analytics';
 import { Tasks } from './screens/Tasks';
 import { Login } from './screens/Login';
 import { Paywall } from './screens/Paywall';
@@ -17,6 +16,9 @@ import { RefillDialog } from './screens/RefillDialog';
 import { Wallet } from './screens/Wallet';
 import { Marketplace } from './screens/Marketplace';
 import { AIDoctor } from './screens/AIDoctor';
+import { VitalsTracker } from './components/VitalsTracker';
+import { SOSButton } from './components/SOSButton';
+import { SymptomTracker } from './components/SymptomTracker';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStore } from './store/useStore';
@@ -46,6 +48,8 @@ export default function App() {
   const [showWallet, setShowWallet] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showAIDoctor, setShowAIDoctor] = useState(false);
+  const [showVitals, setShowVitals] = useState(false);
+  const [showSymptoms, setShowSymptoms] = useState(false);
   const [showBranding, setShowBranding] = useState(false);
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(null);
   const [refillMed, setRefillMed] = useState<Medicine | null>(null);
@@ -154,6 +158,8 @@ export default function App() {
           onRefillMed={(med) => setRefillMed(med)} 
           onShowMarketplace={() => setShowMarketplace(true)}
           onShowAIDoctor={() => setShowAIDoctor(true)}
+          onShowVitals={() => setShowVitals(true)}
+          onShowSymptoms={() => setShowSymptoms(true)}
           onScanComplete={(meds) => {
             setScannedMeds(meds);
             if (meds.length === 1) {
@@ -164,7 +170,7 @@ export default function App() {
           }}
         />
       );
-      case 'meds': return <Meds onSelectMed={(med) => setSelectedMed(med)} onRefillMed={(med) => setRefillMed(med)} />;
+      case 'meds': return <Meds onSelectMed={(med) => setSelectedMed(med)} onRefillMed={(med) => setRefillMed(med)} onAddMed={() => setActiveTab('add')} />;
       case 'add': return (
         <AddMed 
           onComplete={() => {
@@ -179,10 +185,26 @@ export default function App() {
         />
       );
       case 'calendar': return <CalendarView />;
-      case 'analytics': return <Analytics />;
       case 'tasks': return <Tasks />;
       case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} onShowWallet={() => setShowWallet(true)} />;
-      default: return <Home />;
+      default: return (
+        <Home 
+          onOpenAI={() => setShowAI(true)} 
+          onRefillMed={(med) => setRefillMed(med)} 
+          onShowMarketplace={() => setShowMarketplace(true)}
+          onShowAIDoctor={() => setShowAIDoctor(true)}
+          onShowVitals={() => setShowVitals(true)}
+          onShowSymptoms={() => setShowSymptoms(true)}
+          onScanComplete={(meds) => {
+            setScannedMeds(meds);
+            if (meds.length === 1) {
+              setActiveTab('add');
+            } else if (meds.length > 1) {
+              setShowReviewScan(true);
+            }
+          }}
+        />
+      );
     }
   };
 
@@ -244,12 +266,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-[#F7F8FC] dark:bg-[#0f172a] transition-colors duration-300">
-      {/* Global Medical Watermark */}
-      <div className="absolute bottom-10 right-5 w-50 opacity-5 blur-sm pointer-events-none z-0">
-        <img src="https://cdn-icons-png.flaticon.com/512/3062/3062634.png" alt="Watermark" className="filter-green" />
-      </div>
-
+    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-background transition-colors duration-300">
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -264,6 +281,8 @@ export default function App() {
       </AnimatePresence>
 
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      <SOSButton />
       
       {/* Smart Reminder Popup */}
       <AnimatePresence>
@@ -355,7 +374,9 @@ export default function App() {
             onScanComplete={(meds) => {
               setShowAI(false);
               setScannedMeds(meds);
-              setShowReviewScan(true);
+              if (meds.length > 0) {
+                setShowReviewScan(true);
+              }
             }}
           />
         </DrawerContent>
@@ -371,6 +392,11 @@ export default function App() {
               setActiveTab('meds');
             }}
             onCancel={() => setShowReviewScan(false)}
+            onEdit={(med) => {
+              setScannedMeds([med]);
+              setShowReviewScan(false);
+              setActiveTab('add');
+            }}
           />
         </DrawerContent>
       </Drawer>
@@ -393,18 +419,9 @@ export default function App() {
       <Drawer open={showMarketplace} onOpenChange={setShowMarketplace}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
           <DrawerHeader className="sr-only">
-            <DrawerTitle>Marketplace</DrawerTitle>
+            <DrawerTitle>Rate</DrawerTitle>
           </DrawerHeader>
           <Marketplace onClose={() => setShowMarketplace(false)} />
-        </DrawerContent>
-      </Drawer>
-
-      <Drawer open={showAIDoctor} onOpenChange={setShowAIDoctor}>
-        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>AI Doctor</DrawerTitle>
-          </DrawerHeader>
-          <AIDoctor onClose={() => setShowAIDoctor(false)} />
         </DrawerContent>
       </Drawer>
 
@@ -415,6 +432,48 @@ export default function App() {
           )}
         </DrawerContent>
       </Drawer>
+
+      <AnimatePresence>
+        {showAIDoctor && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <AIDoctor onClose={() => setShowAIDoctor(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showVitals && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <VitalsTracker onClose={() => setShowVitals(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSymptoms && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <SymptomTracker onClose={() => setShowSymptoms(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Toaster position="top-center" richColors />
     </div>

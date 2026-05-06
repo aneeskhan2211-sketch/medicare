@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { CheckCircle2, Circle, Clock, Plus, Trash2, X, Calendar as CalendarIcon, Repeat } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Plus, Trash2, X, Calendar as CalendarIcon, Repeat, ClipboardList, Sun, Moon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { Task, RecurrenceType } from '../types';
+import { MedicalBackground } from '../components/MedicalBackground';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { playSuccessSound } from '../lib/audio';
 
 export const Tasks: React.FC = () => {
   const tasks = useStore(state => state.tasks);
@@ -17,6 +19,8 @@ export const Tasks: React.FC = () => {
   const updateTaskStatus = useStore(state => state.updateTaskStatus);
   const deleteTask = useStore(state => state.deleteTask);
   const activeProfileId = useStore(state => state.activeProfileId);
+  const settings = useStore(state => state.settings);
+  const updateSettings = useStore(state => state.updateSettings);
   
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
@@ -73,42 +77,65 @@ export const Tasks: React.FC = () => {
   };
 
   return (
-    <div className="pb-32 h-full flex flex-col bg-background transition-colors duration-300">
-      <header className="p-6 flex justify-between items-center transition-colors">
+    <div className="pb-32 min-h-screen transition-colors duration-300 relative">
+      <MedicalBackground />
+
+      <header className="p-6 flex justify-between items-center transition-colors relative z-10">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">General Tasks</h1>
           <p className="text-muted-foreground text-sm font-medium">Manage your health activities</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowAdd(true)}
-          className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30"
-        >
-          <Plus size={24} />
-        </motion.button>
+        <div className="flex items-center gap-3">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              const newMode = !settings.darkMode;
+              updateSettings({ darkMode: newMode });
+              toast.info(newMode ? 'Dark mode activated' : 'Light mode activated');
+            }}
+            className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors border border-border"
+          >
+            {settings.darkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} />}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowAdd(true)}
+            className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse-green"
+          >
+            <Plus size={24} />
+          </motion.button>
+        </div>
       </header>
 
       {profileTasks.length > 0 && (
-        <div className="px-6 pb-4 flex items-center gap-3">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sort by:</span>
-          <div className="flex bg-muted p-1 rounded-xl transition-colors">
+        <div className="px-6 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+              <div className="w-1 h-1 rounded-full bg-primary" />
+              {profileTasks.length} {profileTasks.length === 1 ? 'Task' : 'Tasks'}
+            </span>
+          </div>
+          <div className="flex bg-muted/50 p-1 rounded-xl transition-colors border border-border/50">
             <button 
               onClick={() => setSortBy('date')}
               className={cn(
-                "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
-                sortBy === 'date' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5",
+                sortBy === 'date' ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Due Date
+              <CalendarIcon size={12} />
+              Date
             </button>
             <button 
               onClick={() => setSortBy('status')}
               className={cn(
-                "px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
-                sortBy === 'status' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5",
+                sortBy === 'status' ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
             >
+              <CheckCircle2 size={12} />
               Status
             </button>
           </div>
@@ -129,14 +156,19 @@ export const Tasks: React.FC = () => {
               <motion.div
                 key={task.id}
                 initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={{ 
+                  opacity: task.status === 'completed' ? 0.7 : 1, 
+                  y: 0,
+                  scale: task.status === 'completed' ? 0.98 : 1
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 layout
               >
                 <Card className={cn(
-                  "border-none shadow-sm transition-all rounded-[24px] overflow-hidden",
-                  task.status === 'completed' ? "bg-muted/50 opacity-60" : "bg-card"
+                  "border-none premium-card transition-all rounded-xl overflow-hidden",
+                  task.status === 'completed' ? "bg-muted/50 opacity-60 shadow-none" : "bg-card"
                 )}>
-                  <CardContent className="p-4 flex items-center gap-4">
+                  <CardContent className="p-3 flex items-center gap-3 transition-all">
                     <motion.button 
                       whileTap={{ scale: 0.8 }}
                       whileHover={{ scale: 1.1 }}
@@ -144,41 +176,66 @@ export const Tasks: React.FC = () => {
                         const isCompleting = task.status === 'pending';
                         updateTaskStatus(task.id, isCompleting ? 'completed' : 'pending');
                         if (isCompleting) {
-                          toast.success('Task marked as completed! 🎉', {
+                          playSuccessSound();
+                          toast.success('Task completed! 🎉', {
                             description: task.recurrence && task.recurrence !== 'none' ? `Next ${task.recurrence} task created.` : undefined
                           });
                         }
                       }}
                       className={cn(
-                        "transition-colors relative flex items-center justify-center w-8 h-8",
-                        task.status === 'completed' ? "text-green-500" : "text-muted-foreground/30 hover:text-primary"
+                        "transition-colors relative flex items-center justify-center w-7 h-7 shrink-0",
+                        task.status === 'completed' ? "text-emerald-500" : "text-muted-foreground/30 hover:text-primary"
                       )}
                     >
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={task.status}
                           initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
+                          animate={{ scale: 1, opacity: 1, rotate: task.status === 'completed' ? [0, -15, 15, 0] : 0 }}
                           exit={{ scale: 0.5, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                          transition={{ 
+                            default: { type: "spring", stiffness: 500, damping: 25 },
+                            rotate: { duration: 0.4, ease: "easeInOut" }
+                          }}
                         >
-                          {task.status === 'completed' ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                          {task.status === 'completed' ? <CheckCircle2 size={22} /> : <Circle size={22} />}
                         </motion.div>
                       </AnimatePresence>
-                      {task.status === 'completed' && (
-                        <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1.5, opacity: 0 }}
-                          transition={{ duration: 0.5 }}
-                          className="absolute inset-0 rounded-full bg-green-500/20"
-                        />
-                      )}
+                      
+                      <AnimatePresence>
+                        {task.status === 'completed' && (
+                          <>
+                            {/* Confetti Particles */}
+                            {[...Array(6)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ scale: 0, x: 0, y: 0 }}
+                                animate={{ 
+                                  scale: [0, 1, 0],
+                                  x: [0, (i % 2 === 0 ? 1 : -1) * (15 + Math.random() * 20)],
+                                  y: [0, (Math.floor(i/2) - 1) * (15 + Math.random() * 20)],
+                                  rotate: [0, 180]
+                                }}
+                                transition={{ duration: 0.6, ease: "easeOut" }}
+                                className="absolute w-1 h-1 rounded-full bg-emerald-400"
+                              />
+                            ))}
+                            <motion.div
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1.8, opacity: 0 }}
+                              transition={{ duration: 0.4 }}
+                              className="absolute inset-0 rounded-full bg-emerald-500/20"
+                            />
+                          </>
+                        )}
+                      </AnimatePresence>
                     </motion.button>
                     <div className="flex-1 min-w-0">
                       <div className="relative inline-block max-w-full">
                         <h4 className={cn(
-                          "font-bold text-foreground transition-colors duration-500 truncate",
-                          task.status === 'completed' && "text-muted-foreground"
+                          "font-black text-foreground text-base transition-colors duration-500 truncate leading-tight uppercase tracking-tight",
+                          task.status === 'completed' && "text-muted-foreground opacity-50",
+                          task.title.toLowerCase().includes('blood pressure') && "text-rose-600 dark:text-rose-400"
                         )}>
                           {task.title}
                         </h4>
@@ -188,23 +245,23 @@ export const Tasks: React.FC = () => {
                               initial={{ width: 0 }}
                               animate={{ width: "100%" }}
                               exit={{ width: 0 }}
-                              className="absolute left-0 top-1/2 h-[2px] bg-muted-foreground/30 -translate-y-1/2"
+                              className="absolute left-0 top-1/2 h-[1px] bg-muted-foreground/30 -translate-y-1/2"
                             />
                           )}
                         </AnimatePresence>
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
-                          <CalendarIcon size={12} />
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase tracking-tight">
+                          <CalendarIcon size={10} />
                           {task.dueDate}
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
-                          <Clock size={12} />
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase tracking-tight">
+                          <Clock size={10} />
                           {task.dueTime}
                         </div>
                         {task.recurrence && task.recurrence !== 'none' && (
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-primary uppercase">
-                            <Repeat size={12} />
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-primary uppercase tracking-tight">
+                            <Repeat size={10} />
                             {task.recurrence}
                           </div>
                         )}
@@ -212,9 +269,9 @@ export const Tasks: React.FC = () => {
                     </div>
                     <button 
                       onClick={() => deleteTask(task.id)}
-                      className="text-muted-foreground/30 hover:text-destructive transition-colors p-2"
+                      className="text-muted-foreground/20 hover:text-destructive transition-colors p-1 shrink-0"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </CardContent>
                 </Card>
@@ -246,38 +303,38 @@ export const Tasks: React.FC = () => {
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Task Title</label>
+                  <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">TASK TITLE</label>
                   <Input 
-                    value={title}
+                    value={title || ''}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Blood pressure check"
-                    className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground focus:ring-2 focus:ring-primary transition-all"
+                    className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground font-bold focus:ring-2 focus:ring-primary transition-all"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Due Date</label>
+                    <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">DUE DATE</label>
                     <Input 
                       type="date"
-                      value={date}
+                      value={date || ''}
                       onChange={(e) => setDate(e.target.value)}
-                      className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground focus:ring-2 focus:ring-primary transition-all appearance-none"
+                      className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground font-bold focus:ring-2 focus:ring-primary transition-all appearance-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Due Time</label>
+                    <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">DUE TIME</label>
                     <Input 
                       type="time"
-                      value={time}
+                      value={time || ''}
                       onChange={(e) => setTime(e.target.value)}
-                      className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground focus:ring-2 focus:ring-primary transition-all appearance-none"
+                      className="rounded-[20px] bg-muted border-none h-14 px-5 text-foreground font-bold focus:ring-2 focus:ring-primary transition-all appearance-none"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Recurrence</label>
+                  <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">RECURRENCE</label>
                   <div className="grid grid-cols-4 gap-2">
                     {(['none', 'daily', 'weekly', 'monthly'] as RecurrenceType[]).map((type) => (
                       <button
@@ -296,7 +353,7 @@ export const Tasks: React.FC = () => {
                   </div>
                 </div>
 
-                <Button onClick={handleAddTask} className="w-full h-16 rounded-[24px] font-bold text-lg mt-6 shadow-xl shadow-primary/30 premium-shadow">
+                <Button onClick={handleAddTask} className="w-full h-16 rounded-[24px] font-bold text-lg mt-6 shadow-xl shadow-primary/30 premium-shadow animate-pulse-green">
                   Create Task
                 </Button>
               </div>

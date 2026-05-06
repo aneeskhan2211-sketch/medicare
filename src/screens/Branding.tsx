@@ -2,79 +2,178 @@ import React, { useState, useEffect } from 'react';
 import { generateLogo } from '../services/aiService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, RefreshCw, X, CheckCircle2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { Download, RefreshCw, X, CheckCircle2, Wand2, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
 export const Branding: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [fullLogo, setFullLogo] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingCustom, setIsGeneratingCustom] = useState(false);
 
-  const generateLogos = async () => {
+  const defaultIconPrompt = "A premium, modern app icon for a health-tech mobile app named 'Medicare'. The icon features a minimalist capsule shape in a vibrant emerald green with a subtle, sophisticated gradient to a calming blue. Inside the capsule, there is a very subtle, clean neural network or brain-inspired pattern representing AI. The design is flat, minimal, and has soft rounded edges. The icon is centered on a crisp white background. The overall aesthetic is trustworthy, intelligent, and calming, similar to the refined design of Apple Health or Headspace. High-quality, square format.";
+  const defaultFullLogoPrompt = "A professional, minimal full logo for a health-tech mobile app named 'Medicare'. On the left, a clean emblem consisting of an emerald green capsule shape with a subtle AI/brain element. To the right of the emblem, the word 'Medicare' is written in a bold, modern, sans-serif font in a deep slate gray. Directly below 'Medicare', the tagline 'Apno ka khayal' is written in a smaller, elegant, and lighter weight font. The entire logo is presented on a clean white background. The color scheme features emerald green with a soft gradient to blue. The design is premium, flat, and trustworthy. High resolution.";
+
+  const generateDefaultLogos = async () => {
     setIsLoading(true);
     try {
-      const iconPrompt = "A premium, modern app icon for a health-tech mobile app named 'Medicare'. The icon features a minimalist capsule shape in a vibrant emerald green with a subtle, sophisticated gradient to a calming blue. Inside the capsule, there is a very subtle, clean neural network or brain-inspired pattern representing AI. The design is flat, minimal, and has soft rounded edges. The icon is centered on a crisp white background. The overall aesthetic is trustworthy, intelligent, and calming, similar to the refined design of Apple Health or Headspace. High-quality, 1024x1024, square format.";
-      const fullLogoPrompt = "A professional, minimal full logo for a health-tech mobile app named 'Medicare'. On the left, a clean emblem consisting of an emerald green capsule shape with a subtle AI/brain element. To the right of the emblem, the word 'Medicare' is written in a bold, modern, sans-serif font in a deep slate gray. Directly below 'Medicare', the tagline 'Apno ka khayal' is written in a smaller, elegant, and lighter weight font. The entire logo is presented on a clean white background. The color scheme features emerald green with a soft gradient to blue. The design is premium, flat, and trustworthy. High resolution.";
-
       const [icon, logo] = await Promise.all([
-        generateLogo(iconPrompt),
-        generateLogo(fullLogoPrompt)
+        generateLogo(defaultIconPrompt),
+        generateLogo(defaultFullLogoPrompt)
       ]);
 
       setAppIcon(icon);
       setFullLogo(logo);
-      toast.success('Logos generated successfully!');
+      toast.success('Brand assets generated!');
     } catch (error) {
       console.error(error);
-      toast.error('Failed to generate logos. Please check your API key.');
+      toast.error('Failed to generate assets.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGenerateCustom = async () => {
+    if (!customPrompt.trim()) {
+      toast.error('Please describe your vision first');
+      return;
+    }
+
+    setIsGeneratingCustom(true);
+    try {
+      const prompt = `A professional, premium app icon. Theme: ${customPrompt}. Minimalist, high-quality, flat design, centered, 1024x1024.`;
+      const icon = await generateLogo(prompt);
+      setAppIcon(icon);
+      toast.success('Custom icon generated!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to generate custom icon.');
+    } finally {
+      setIsGeneratingCustom(false);
+    }
+  };
+
+  const downloadImage = (dataUrl: string | null, type: string) => {
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `medicare-${type}-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Downloading asset...');
+  };
+
   useEffect(() => {
-    generateLogos();
+    generateDefaultLogos();
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 overflow-y-auto pb-12">
-      <header className="p-6 flex justify-between items-center bg-white border-b border-slate-100 sticky top-0 z-10">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900">Medicare Branding</h1>
-          <p className="text-sm text-slate-500 italic">Apno ka khayal</p>
+    <div className="h-full flex flex-col bg-background overflow-y-auto pb-12 transition-colors duration-300">
+      <header className="p-6 flex justify-between items-center bg-card border-b border-border sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <Sparkles size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-foreground tracking-tight">Identity Studio</h1>
+            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Medicare • Apno ka khayal</p>
+          </div>
         </div>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted">
           <X size={24} />
         </button>
       </header>
 
       <div className="p-6 space-y-8">
+        {/* Custom AI Generation Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Wand2 size={18} className="text-primary" />
+            <h2 className="text-lg font-bold text-foreground">AI Icon Generator</h2>
+          </div>
+          <Card className="border-2 border-primary/20 bg-primary/5 shadow-inner">
+            <CardContent className="p-4 space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Describe the look you want for your Medicare app icon (e.g., "Minimalist heart with digital pulse in purple and gold")
+              </p>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Describe your design vision..." 
+                  className="bg-card border-border h-11"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleGenerateCustom()}
+                />
+                <Button 
+                  onClick={handleGenerateCustom} 
+                  disabled={isGeneratingCustom || !customPrompt.trim()}
+                  className="bg-primary hover:bg-primary/90 h-11 px-6 shadow-lg shadow-primary/20"
+                >
+                  {isGeneratingCustom ? (
+                    <RefreshCw size={18} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={18} />
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-800">App Icon</h2>
-            <Button variant="outline" size="sm" onClick={generateLogos} disabled={isLoading} className="gap-2">
-              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-              Regenerate
+            <div className="flex items-center gap-2">
+              <ImageIcon size={18} className="text-muted-foreground" />
+              <h2 className="text-lg font-bold text-foreground">App Icon</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={generateDefaultLogos} disabled={isLoading} className="text-[10px] uppercase font-black tracking-widest h-8 px-2">
+              <RefreshCw size={12} className={cn("mr-1", isLoading ? "animate-spin" : "")} />
+              Reset to Default
             </Button>
           </div>
-          <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50 bg-white">
+          <Card className="overflow-hidden border-none shadow-xl bg-card group relative">
             <CardContent className="p-8 flex flex-col items-center gap-6">
-              <div className="w-48 h-48 rounded-[40px] shadow-2xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100">
-                {isLoading ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-medium text-slate-400">Designing...</span>
+              <div className="w-56 h-56 rounded-[48px] shadow-2xl overflow-hidden bg-muted flex items-center justify-center border border-border/50 relative">
+                {(isLoading || isGeneratingCustom) ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <motion.div 
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        rotate: [0, 90, 180, 270, 360]
+                      }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      className="w-16 h-16 border-t-4 border-primary rounded-full"
+                    />
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-bold text-foreground">Thinking...</p>
+                      <p className="text-[10px] text-muted-foreground animate-pulse">Mixing pixels and magic</p>
+                    </div>
                   </div>
                 ) : appIcon ? (
-                  <img src={appIcon} alt="App Icon" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <motion.img 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    src={appIcon} 
+                    alt="App Icon" 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer" 
+                  />
                 ) : (
-                  <div className="text-slate-300 italic text-sm">No icon generated</div>
+                  <div className="text-muted-foreground italic text-sm">No icon generated</div>
                 )}
               </div>
-              <div className="flex gap-3 w-full">
-                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 gap-2">
-                  <Download size={16} />
+              <div className="flex gap-4 w-full">
+                <Button 
+                  onClick={() => downloadImage(appIcon, 'icon')}
+                  disabled={!appIcon}
+                  className="flex-1 bg-primary hover:bg-primary/90 gap-2 h-12 shadow-lg shadow-primary/10 transition-all active:scale-95"
+                >
+                  <Download size={18} />
                   Download PNG
                 </Button>
               </div>
@@ -83,58 +182,53 @@ export const Branding: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-800">Full Logo</h2>
-          <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50 bg-white">
+          <h2 className="text-lg font-bold text-foreground">Full Logo</h2>
+          <Card className="overflow-hidden border-none shadow-xl bg-card">
             <CardContent className="p-8 flex flex-col items-center gap-6">
-              <div className="w-full h-48 rounded-3xl bg-slate-50 flex items-center justify-center border border-slate-100 overflow-hidden">
+              <div className="w-full h-48 rounded-3xl bg-muted flex items-center justify-center border border-border/50 overflow-hidden relative">
                 {isLoading ? (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-medium text-slate-400">Crafting...</span>
+                  <div className="text-center space-y-2">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Generating Typography</span>
                   </div>
                 ) : fullLogo ? (
-                  <img src={fullLogo} alt="Full Logo" className="max-w-full max-h-full object-contain p-4" referrerPolicy="no-referrer" />
+                  <motion.img 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    src={fullLogo} 
+                    alt="Full Logo" 
+                    className="max-w-full max-h-full object-contain p-4" 
+                    referrerPolicy="no-referrer" 
+                  />
                 ) : (
-                  <div className="text-slate-300 italic text-sm">No logo generated</div>
+                  <div className="text-muted-foreground italic text-sm">No logo generated</div>
                 )}
               </div>
-              <div className="flex gap-3 w-full">
-                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 gap-2">
-                  <Download size={16} />
-                  Download SVG
+              <div className="flex gap-4 w-full">
+                <Button 
+                  onClick={() => downloadImage(fullLogo, 'logo')}
+                  disabled={!fullLogo}
+                  className="flex-1 bg-secondary hover:bg-secondary/80 gap-2 h-12 transition-all active:scale-95"
+                >
+                  <Download size={18} />
+                  Download PNG
                 </Button>
               </div>
             </CardContent>
           </Card>
         </section>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-800">Brand Guidelines</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white border border-slate-100 space-y-2">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Primary Color</p>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500 shadow-sm" />
-                <span className="text-sm font-mono font-medium text-slate-700">#10B981</span>
-              </div>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 flex gap-4 items-start">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shrink-0">
+              <CheckCircle2 size={20} />
             </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-100 space-y-2">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Typography</p>
-              <p className="text-sm font-bold text-slate-800">Inter Bold</p>
-              <p className="text-[10px] text-slate-500">Modern, Clean, Trustworthy</p>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-primary">Identity Guidelines</h4>
+              <p className="text-xs text-primary/70 leading-relaxed font-medium">
+                The Medicare identity is designed to be calm and trustworthy. Use Emerald (#0F766E) as the primary focus, paired with Slate and Neutral tones for clarity and accessibility.
+              </p>
             </div>
-          </div>
-        </section>
-
-        <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-100 flex gap-4 items-start">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shrink-0">
-            <CheckCircle2 size={20} />
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-emerald-900">Design Complete</h4>
-            <p className="text-xs text-emerald-700 leading-relaxed">
-              The Medicare branding is designed to feel trustworthy and intelligent. The capsule shape represents the core medicine tracking, while the subtle AI patterns signal the smart features.
-            </p>
           </div>
         </div>
       </div>

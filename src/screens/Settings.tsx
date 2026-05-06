@@ -3,15 +3,28 @@ import { useStore } from '../store/useStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock, RefreshCw, Cloud } from 'lucide-react';
+import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock, RefreshCw, Cloud, Coffee, Utensils, Activity, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export const Settings = () => {
-  const { settings, updateSettings, syncData } = useStore();
+  const { settings, updateSettings, syncData, profiles, activeProfileId, updateLifestyle } = useStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
-  const [showSettingsDialog, setShowSettingsDialog] = React.useState(false);
+  const activeProfile = profiles.find(p => p.id === activeProfileId);
+  const lifestyle = activeProfile?.lifestyle || {
+    wakeTime: '07:00',
+    sleepTime: '23:00',
+    mealTimes: { breakfast: '08:00', lunch: '13:00', dinner: '19:30' },
+    activityLevel: 'moderate'
+  };
+
+  const updateMealTime = (meal: 'breakfast' | 'lunch' | 'dinner', time: string) => {
+    updateLifestyle(activeProfileId, {
+      ...lifestyle,
+      mealTimes: { ...lifestyle.mealTimes, [meal]: time }
+    });
+  };
 
   const safeSettings = {
     notifications: settings?.notifications || { enabled: true, emailEnabled: true, pushEnabled: true, reminderSound: 'default' },
@@ -99,6 +112,86 @@ export const Settings = () => {
             </div>
           </div>
           
+          {/* Daily Routine for AI */}
+          <div className="space-y-5 pt-5 border-t border-border transition-colors">
+            <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-1">Daily Routine (AI Optimization)</h3>
+            <p className="text-[10px] text-slate-400 pl-1 leading-tight -mt-4">This data helps Medicare AI suggest the best times for your pills.</p>
+            
+            <div className="grid gap-3">
+               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Sun className="text-amber-500" size={18} />
+                    <span className="text-sm font-bold">Wake Time</span>
+                  </div>
+                  <Input 
+                    type="time" 
+                    value={lifestyle.wakeTime || ''}
+                    className="w-24 h-10 bg-transparent border-none text-right font-bold"
+                    onChange={(e) => updateLifestyle(activeProfileId, { ...lifestyle, wakeTime: e.target.value })}
+                  />
+               </div>
+               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <Moon className="text-indigo-500" size={18} />
+                    <span className="text-sm font-bold">Sleep Time</span>
+                  </div>
+                  <Input 
+                    type="time" 
+                    value={lifestyle.sleepTime || ''}
+                    className="w-24 h-10 bg-transparent border-none text-right font-bold"
+                    onChange={(e) => updateLifestyle(activeProfileId, { ...lifestyle, sleepTime: e.target.value })}
+                  />
+               </div>
+
+               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                  <h4 className="text-[11px] font-bold text-primary uppercase tracking-wider">Meal Times</h4>
+                  <div className="space-y-3">
+                    {[
+                      { id: 'breakfast', icon: Coffee, label: 'Breakfast' },
+                      { id: 'lunch', icon: Sun, label: 'Lunch' },
+                      { id: 'dinner', icon: Utensils, label: 'Dinner' }
+                    ].map((meal) => (
+                      <div key={meal.id} className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <meal.icon size={14} className="text-slate-400" />
+                           <span className="text-xs font-medium text-slate-600">{meal.label}</span>
+                         </div>
+                         <Input 
+                           type="time" 
+                           value={(lifestyle.mealTimes as any)[meal.id] || ''}
+                           className="w-24 h-8 bg-white/50 border-none text-right text-xs font-bold"
+                           onChange={(e) => updateMealTime(meal.id as any, e.target.value)}
+                         />
+                      </div>
+                    ))}
+                  </div>
+               </div>
+
+               <div className="p-4 bg-muted/30 rounded-2xl border border-border/50 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Activity className="text-emerald-500" size={18} />
+                    <span className="text-sm font-bold">Activity Level</span>
+                  </div>
+                  <div className="flex gap-1 bg-white/50 p-1 rounded-lg">
+                    {['low', 'moderate', 'high'].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => updateLifestyle(activeProfileId, { ...lifestyle, activityLevel: level as any })}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-[10px] font-bold capitalize transition-all",
+                          lifestyle.activityLevel === level 
+                            ? "bg-primary text-white" 
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+               </div>
+            </div>
+          </div>
+
           {/* Security */}
           <div className="space-y-5 pt-5 border-t border-slate-100 dark:border-slate-800">
             <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Security & Privacy</h3>
@@ -204,7 +297,7 @@ export const Settings = () => {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Quiet From</span>
                     <Input 
                       type="time" 
-                      value={safeSettings.quietHours.start}
+                      value={safeSettings.quietHours.start || ''}
                       className="rounded-xl border-border bg-muted h-12 text-sm font-bold text-foreground"
                       onChange={(e) => updateSettings({ quietHours: { ...safeSettings.quietHours, start: e.target.value } })}
                     />
@@ -213,7 +306,7 @@ export const Settings = () => {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Until</span>
                     <Input 
                       type="time" 
-                      value={safeSettings.quietHours.end}
+                      value={safeSettings.quietHours.end || ''}
                       className="rounded-xl border-border bg-muted h-12 text-sm font-bold text-foreground"
                       onChange={(e) => updateSettings({ quietHours: { ...safeSettings.quietHours, end: e.target.value } })}
                     />

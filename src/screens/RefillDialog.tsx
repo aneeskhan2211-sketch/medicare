@@ -33,13 +33,13 @@ export const RefillDialog: React.FC<RefillDialogProps> = ({ medicine, onClose })
       </header>
 
       <div className="p-6 flex-1 space-y-8">
-        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-          <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm">
-            <Pill size={24} />
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+          <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-slate-400 shadow-sm shrink-0 transition-all">
+            <Pill size={18} />
           </div>
-          <div>
-            <h3 className="font-bold text-slate-900 text-lg">{medicine.name}</h3>
-            <p className="text-sm text-slate-500">Current stock: {medicine.stock} units</p>
+          <div className="min-w-0">
+            <h3 className="font-bold text-slate-900 text-sm truncate">{medicine.name}</h3>
+            <p className="text-[10px] text-slate-500 font-medium transition-colors">Current stock: {medicine.stock} units</p>
           </div>
         </div>
 

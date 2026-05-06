@@ -4,6 +4,7 @@ import { ChevronDown, Plus, User, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -29,30 +30,32 @@ export const ProfileSwitcher: React.FC = () => {
         <ChevronDown size={14} className="text-slate-400" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56 rounded-2xl p-2 shadow-xl border-slate-100">
-        <DropdownMenuLabel className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1.5">
-          Switch Profile
-        </DropdownMenuLabel>
-        {profiles.map((profile) => (
-          <DropdownMenuItem
-            key={profile.id}
-            onClick={() => setActiveProfile(profile.id)}
-            className={cn(
-              "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors",
-              activeProfileId === profile.id ? "bg-indigo-50 text-indigo-600" : "hover:bg-slate-50"
-            )}
-          >
-            <Avatar className="w-8 h-8 border border-white shadow-sm">
-              <AvatarImage src={profile.avatar} />
-              <AvatarFallback className="text-xs font-bold" style={{ backgroundColor: profile.color, color: '#fff' }}>
-                {profile.name[0]}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold">{profile.name}</span>
-              <span className="text-[10px] opacity-70">{profile.age} years • {profile.gender}</span>
-            </div>
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1.5">
+            Switch Profile
+          </DropdownMenuLabel>
+          {profiles.map((profile) => (
+            <DropdownMenuItem
+              key={profile.id}
+              onClick={() => setActiveProfile(profile.id)}
+              className={cn(
+                "flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors",
+                activeProfileId === profile.id ? "bg-indigo-50 text-indigo-600" : "hover:bg-slate-50"
+              )}
+            >
+              <Avatar className="w-8 h-8 border border-white shadow-sm">
+                <AvatarImage src={profile.avatar} />
+                <AvatarFallback className="text-xs font-bold" style={{ backgroundColor: profile.color, color: '#fff' }}>
+                  {profile.name[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">{profile.name}</span>
+                <span className="text-[10px] opacity-70">{profile.age} years • {profile.gender}</span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator className="my-1 bg-slate-100" />
         <DropdownMenuItem className="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-indigo-50 text-indigo-600 transition-colors">
           <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">

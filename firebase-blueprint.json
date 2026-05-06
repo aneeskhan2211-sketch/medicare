@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "vitals": {
+      "title": "Vitals",
+      "description": "User vital signs like heart rate.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "profileId": { "type": "string" },
+        "heartRate": { "type": "number" },
+        "source": { 
+          "type": "string",
+          "enum": ["manual", "wearable", "bluetooth", "demo"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["low", "normal", "elevated", "high"]
+        },
+        "recordedAt": { "type": "string", "format": "date-time" },
+        "deviceName": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "profileId", "heartRate", "source", "status", "recordedAt"]
+    }
+  },
+  "firestore": {
+    "vitals/{vitalId}": {
+      "schema": "vitals",
+      "description": "A collection of user vitals records."
+    }
+  }
+}

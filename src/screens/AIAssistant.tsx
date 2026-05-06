@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getChatResponse, extractMedicineInfo } from '../services/aiService';
-import { Medicine } from '../types';
+import { Medicine, Appointment } from '../types';
+import ReactMarkdown from 'react-markdown';
 
 interface AIAssistantProps {
   onClose: () => void;
@@ -16,7 +17,23 @@ interface AIAssistantProps {
 }
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedicine, onScanComplete }) => {
-  const { chatHistory, addChatMessage, clearChat, medicines, reminders, incrementAiQuery, spendCoins, user, addMedicine, activeProfileId } = useStore();
+  const { chatHistory, addChatMessage, clearChat, medicines, reminders, incrementAiQuery, spendCoins, user, addMedicine, activeProfileId, addAppointment } = useStore();
+
+  const handleBookAppointment = (aptData: any) => {
+    const newApt: Appointment = {
+      id: Math.random().toString(36).substr(2, 9),
+      profileId: activeProfileId,
+      doctorName: aptData.doctor,
+      specialty: aptData.specialty,
+      date: aptData.date,
+      time: aptData.time,
+      status: 'upcoming',
+      location: 'Medical Center, AI Tower'
+    };
+    
+    addAppointment(newApt);
+    toast.success(`Appointment confirmed with ${newApt.doctorName} on ${newApt.date} at ${newApt.time}`);
+  };
 
   const handleSchedule = (medData: any) => {
     const newMed: Medicine = {
@@ -44,32 +61,79 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedici
   };
 
   const renderMessageContent = (content: string) => {
-    const schedulerMatch = content.match(/\[SCHEDULER\](.*?)\[\/SCHEDULER\]/s);
-    if (!schedulerMatch) {
-      return content.split('\n').map((line, i) => <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>);
-    }
+    const medMatch = content.match(/\[SCHEDULER\](.*?)\[\/SCHEDULER\]/s);
+    const aptMatch = content.match(/\[SCHEDULE_APPOINTMENT:\s*({.*?})\]/s);
 
-    const mainContent = content.replace(schedulerMatch[0], '');
-    const medData = JSON.parse(schedulerMatch[1]);
+    let displayContent = content;
+    let extraUI = null;
+
+    if (medMatch) {
+      displayContent = content.replace(medMatch[0], '');
+      try {
+        const medData = JSON.parse(medMatch[1]);
+        extraUI = (
+          <Button 
+            onClick={() => handleSchedule(medData)}
+            className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl"
+          >
+            Schedule {medData.name}
+          </Button>
+        );
+      } catch (e) {
+        console.error("Failed to parse med data", e);
+      }
+    } else if (aptMatch) {
+      displayContent = content.replace(aptMatch[0], '');
+      try {
+        const aptData = JSON.parse(aptMatch[1]);
+        extraUI = (
+          <Button 
+            onClick={() => handleBookAppointment(aptData)}
+            className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+          >
+            <Sparkles size={16} />
+            Confirm Appointment: {aptData.time}
+          </Button>
+        );
+      } catch (e) {
+        console.error("Failed to parse appointment data", e);
+      }
+    }
 
     return (
       <>
-        {mainContent.split('\n').map((line, i) => <p key={i} className={cn(i > 0 && "mt-2")}>{line}</p>)}
-        <Button 
-          onClick={() => handleSchedule(medData)}
-          className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl"
-        >
-          Schedule {medData.name}
-        </Button>
+        <div className="markdown-body prose dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-ol:list-decimal prose-ul:list-disc">
+          <ReactMarkdown>{displayContent}</ReactMarkdown>
+        </div>
+        {extraUI}
       </>
     );
   };
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contextMedicine) {
+      setSuggestions([
+        `Side effects of ${contextMedicine.name}?`,
+        `Can I take ${contextMedicine.name} with food?`,
+        `What if I miss a dose of ${contextMedicine.name}?`,
+        `${contextMedicine.name} interactions`
+      ]);
+    } else {
+      setSuggestions([
+        "Check my schedule",
+        "I missed a dose",
+        "How to stay consistent?",
+        "Symptoms check"
+      ]);
+    }
+  }, [contextMedicine]);
 
   const startSpeechRecognition = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -125,22 +189,22 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, contextMedici
             
           const response = `I've scanned the label! Here's what I found:
         
-**Medicine:** ${info.name}
-**Dosage:** ${info.dosage}
-**Type:** ${info.type}
-**Frequency:** ${info.frequency}
-${info.stock ? `**Initial Stock:** ${info.stock}\n` : ''}${info.expiryDate ? `**Expiry Date:** ${info.expiryDate}\n` : ''}**Instructions:** ${info.instructions}
+1. **${info.name}** (${info.dosage}) - ${info.frequency}
 
-*Scan Confidence: ${Math.round(avgConfidence * 100)}%*
-
-Would you like me to add this to your medications?`;
+I've opened the review list so you can confirm and add it to your schedule.`;
           addChatMessage({ role: 'assistant', content: response });
+          
+          if (onScanComplete) {
+            setTimeout(() => {
+              onScanComplete(meds);
+            }, 2000);
+          }
         } else {
           const response = `I've found ${meds.length} medications in your prescription!
           
 ${meds.map((m, i) => `${i + 1}. **${m.name}** (${m.dosage}) - ${m.frequency}`).join('\n')}
 
-I can help you add all of these to your schedule at once. Would you like to review them?`;
+I've opened the review list so you can confirm all of these at once.`;
           addChatMessage({ role: 'assistant', content: response });
           
           if (onScanComplete) {
@@ -163,9 +227,19 @@ I can help you add all of these to your schedule at once. Would you like to revi
   };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const scrollToBottom = () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    const timer = setTimeout(scrollToBottom, 100);
+    scrollToBottom();
+
+    return () => clearTimeout(timer);
   }, [chatHistory, isTyping]);
 
   const handleSend = async (force: boolean = false) => {
@@ -215,13 +289,6 @@ I can help you add all of these to your schedule at once. Would you like to revi
     }
   };
 
-  const suggestions = [
-    "Remind me to take Paracetamol",
-    "I missed my morning dose",
-    "How to stay consistent?",
-    "Check my stock levels"
-  ];
-
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -249,6 +316,9 @@ I can help you add all of these to your schedule at once. Would you like to revi
       </header>
 
       {/* Chat Area */}
+      <div className="bg-amber-50/80 dark:bg-amber-900/10 text-black dark:text-amber-200 text-[9px] px-6 py-2 text-center font-bold border-b border-amber-100 dark:border-amber-900/20 backdrop-blur-sm">
+        Disclaimer: Medicare AI is an assistant, not a doctor. Does not replace professional medical advice.
+      </div>
       <div className="flex-1 overflow-y-auto p-4 w-full touch-pan-y min-h-0" ref={scrollRef} style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="space-y-6 pb-4">
           {chatHistory.map((msg) => (
@@ -291,19 +361,17 @@ I can help you add all of these to your schedule at once. Would you like to revi
       {/* Input Area */}
       <div className="p-4 bg-card border-t border-border space-y-4 safe-bottom transition-colors">
         {/* Suggestions */}
-        {chatHistory.length < 3 && (
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
-            {suggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => { setInput(s); handleSend(); }}
-                className="whitespace-nowrap bg-muted text-muted-foreground text-xs font-medium px-4 py-2 rounded-full border border-border hover:bg-primary/5 hover:border-primary/20 transition-all font-bold"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => { setInput(s); setTimeout(() => handleSend(), 100); }}
+              className="whitespace-nowrap bg-muted text-muted-foreground text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/20 transition-all"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
@@ -330,7 +398,7 @@ I can help you add all of these to your schedule at once. Would you like to revi
           <div className="flex-1 relative">
             <input
               type="text"
-              value={input}
+              value={input || ''}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ask me anything..."
