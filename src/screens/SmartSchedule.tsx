@@ -99,7 +99,7 @@ export const SmartSchedule: React.FC<SmartScheduleProps> = ({ medicine, onAccept
         </div>
         <div className="text-center">
           <h3 className="text-xl font-bold text-slate-900">Analyzing Schedule</h3>
-          <p className="text-slate-500 text-sm">Medicare AI is calculating the optimal times based on your lifestyle...</p>
+          <p className="text-slate-500 text-sm">MediPulse is calculating the optimal times based on your lifestyle...</p>
         </div>
       </div>
     );

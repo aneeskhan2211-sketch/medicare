@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Medicine } from '../types';
 import { useStore } from '../store/useStore';
 import { Button } from '@/components/ui/button';
-import { Pill, Plus, Minus, ShoppingBag, X } from 'lucide-react';
+import { Pill, Plus, Minus, ShoppingBag, X, MessageCircle, MapPin, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RefillDialogProps {
@@ -21,6 +21,25 @@ export const RefillDialog: React.FC<RefillDialogProps> = ({ medicine, onClose })
     });
     toast.success(`Added ${amount} units to ${medicine.name}`);
     onClose();
+  };
+
+  const handleWhatsAppRefill = () => {
+    const message = encodeURIComponent(`Hi, I need a refill for ${medicine.name} (${medicine.dosage || ""}). Amount: ${amount} units.`);
+    window.open(`https://wa.me/91XXXXXXXXXX?text=${message}`, '_blank');
+    toast.success('Opening WhatsApp...');
+  };
+
+  const handlePharmacyRefill = () => {
+    toast.info('Local Pharmacy Integration', {
+      description: `Checking availability for ${medicine.name} at nearby Apollo and Netmeds...`,
+      icon: <Truck size={16} />
+    });
+    
+    setTimeout(() => {
+      toast.success('Found at Apollo Pharmacy (0.8km away)', {
+        description: 'Delivery available in 30 mins.'
+      });
+    }, 2000);
   };
 
   return (
@@ -68,6 +87,25 @@ export const RefillDialog: React.FC<RefillDialogProps> = ({ medicine, onClose })
               <Plus size={24} />
             </Button>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Button 
+            variant="outline"
+            className="h-20 flex flex-col gap-2 rounded-2xl border-emerald-100 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50 font-bold"
+            onClick={handleWhatsAppRefill}
+          >
+            <MessageCircle size={24} />
+            <span className="text-xs">Ask on WhatsApp</span>
+          </Button>
+          <Button 
+            variant="outline"
+            className="h-20 flex flex-col gap-2 rounded-2xl border-indigo-100 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-50 font-bold"
+            onClick={handlePharmacyRefill}
+          >
+            <MapPin size={24} />
+            <span className="text-xs">Nearby Pharmacy</span>
+          </Button>
         </div>
       </div>
 

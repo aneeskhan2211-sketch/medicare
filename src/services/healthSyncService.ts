@@ -5,7 +5,9 @@ import { VitalSign } from "../types";
 const DATA_TYPES = {
   HEART_RATE: 'com.google.heart_rate.bpm',
   BLOOD_PRESSURE: 'com.google.blood_pressure',
-  SPO2: 'com.google.oxygen_saturation'
+  SPO2: 'com.google.oxygen_saturation',
+  ECG: 'com.google.ecg',
+  SLEEP: 'com.google.sleep.segment'
 };
 
 class HealthSyncService {
@@ -62,7 +64,7 @@ class HealthSyncService {
 
       // Real implementation would look like this:
       /*
-      const dataSourceId = `raw:${dataType}:com.medicare.app:ble_device`;
+      const dataSourceId = `raw:${dataType}:com.medipulse.app:ble_device`;
       const datasetId = `${startTimeNanos}-${endTimeNanos}`;
       
       const payload = {

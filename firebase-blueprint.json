@@ -1,32 +1,116 @@
 {
   "entities": {
-    "vitals": {
-      "title": "Vitals",
-      "description": "User vital signs like heart rate.",
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "isPremium": { "type": "boolean" },
+        "tier": { "type": "string" },
+        "avatar": { "type": "string" },
+        "coins": { "type": "number" },
+        "balance": { "type": "number" },
+        "streak": { "type": "number" },
+        "maxStreak": { "type": "number" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "loginProvider": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "notificationPreferences": {
+          "type": "object",
+          "properties": {
+            "push": { "type": "boolean" },
+            "email": { "type": "boolean" },
+            "sms": { "type": "boolean" }
+          }
+        },
+        "healthProfile": {
+          "type": "object",
+          "properties": {
+            "age": { "type": "number" },
+            "gender": { "type": "string" },
+            "weight": { "type": "number" },
+            "height": { "type": "number" },
+            "conditions": { "type": "array", "items": { "type": "string" } },
+            "goals": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "User login sessions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["id", "userId", "lastActive"]
+    },
+    "LinkedAccount": {
+      "title": "LinkedAccount",
+      "description": "Linked social auth accounts",
+      "type": "object",
+      "properties": {
+        "providerId": { "type": "string" },
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["providerId", "uid", "email"]
+    },
+    "OTPLog": {
+      "title": "OTPLog",
+      "description": "Logs of OTP requests to prevent abuse",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" }
+      }
+    },
+    "SecurityLog": {
+      "title": "SecurityLog",
+      "description": "Logs of security events like suspicious logins",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "profileId": { "type": "string" },
-        "heartRate": { "type": "number" },
-        "source": { 
-          "type": "string",
-          "enum": ["manual", "wearable", "bluetooth", "demo"]
-        },
-        "status": {
-          "type": "string",
-          "enum": ["low", "normal", "elevated", "high"]
-        },
-        "recordedAt": { "type": "string", "format": "date-time" },
-        "deviceName": { "type": "string" },
-        "notes": { "type": "string" }
-      },
-      "required": ["userId", "profileId", "heartRate", "source", "status", "recordedAt"]
+        "event": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "details": { "type": "string" }
+      }
     }
   },
   "firestore": {
-    "vitals/{vitalId}": {
-      "schema": "vitals",
-      "description": "A collection of user vitals records."
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Primary user documents"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "User session history"
+    },
+    "/users/{userId}/linked_accounts/{providerId}": {
+      "schema": "LinkedAccount",
+      "description": "Mapped social IDs for account linking"
+    },
+    "/otp_logs/{logId}": {
+      "schema": "OTPLog",
+      "description": "Rate limiting data for SMS"
+    },
+    "/security_logs/{logId}": {
+      "schema": "SecurityLog",
+      "description": "Audit trail for security events"
     }
   }
 }

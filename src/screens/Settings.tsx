@@ -3,13 +3,18 @@ import { useStore } from '../store/useStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock, RefreshCw, Cloud, Coffee, Utensils, Activity, Sun } from 'lucide-react';
+import { Bell, Moon, Languages, Clock, Shield, Fingerprint, Lock, RefreshCw, Cloud, Coffee, Utensils, Activity, Sun, Watch, Smartphone, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Settings as SettingsType } from '../types';
+import { notificationService } from '../services/notificationService';
+import { useTranslation } from 'react-i18next';
 
 export const Settings = () => {
-  const { settings, updateSettings, syncData, profiles, activeProfileId, updateLifestyle } = useStore();
+  const { t, i18n } = useTranslation();
+  const { settings, updateSettings, syncData, profiles, activeProfileId, updateLifestyle, logout } = useStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const activeProfile = profiles.find(p => p.id === activeProfileId);
   const lifestyle = activeProfile?.lifestyle || {
@@ -26,13 +31,19 @@ export const Settings = () => {
     });
   };
 
-  const safeSettings = {
+  const safeSettings: SettingsType = {
+    ...settings,
     notifications: settings?.notifications || { enabled: true, emailEnabled: true, pushEnabled: true, reminderSound: 'default' },
     security: settings?.security || { biometricEnabled: false, autoLock: false, twoFactorEnabled: false },
     darkMode: settings?.darkMode ?? false,
     language: settings?.language || 'en',
     quietHours: settings?.quietHours || { enabled: false, start: '22:00', end: '07:00' },
-    dataSync: settings?.dataSync || { autoSync: true, lastSynced: new Date().toISOString() }
+    dataSync: settings?.dataSync || { autoSync: true, lastSynced: new Date().toISOString() },
+    caregiverAlerts: settings?.caregiverAlerts || { enabled: false, name: '', email: '', phone: '', alertOnMissingCritical: true },
+    smartwatchConnected: settings?.smartwatchConnected ?? false,
+    appleHealthConnected: settings?.appleHealthConnected ?? false,
+    googleFitConnected: settings?.googleFitConnected ?? false,
+    sensitivity: settings?.sensitivity ?? 50
   };
 
   const handleSync = async () => {
@@ -89,7 +100,18 @@ export const Settings = () => {
                   </div>
                   <Switch 
                     checked={safeSettings.notifications.pushEnabled}
-                    onCheckedChange={(checked) => updateSettings({ notifications: { ...safeSettings.notifications, pushEnabled: checked } })}
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        const granted = await notificationService.requestPermission();
+                        if (!granted) {
+                          toast.error('Notification permission denied', {
+                            description: 'Please enable notifications in your browser settings.'
+                          });
+                          return;
+                        }
+                      }
+                      updateSettings({ notifications: { ...safeSettings.notifications, pushEnabled: checked } });
+                    }}
                   />
                 </div>
               </div>
@@ -115,7 +137,7 @@ export const Settings = () => {
           {/* Daily Routine for AI */}
           <div className="space-y-5 pt-5 border-t border-border transition-colors">
             <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-1">Daily Routine (AI Optimization)</h3>
-            <p className="text-[10px] text-slate-400 pl-1 leading-tight -mt-4">This data helps Medicare AI suggest the best times for your pills.</p>
+            <p className="text-[10px] text-slate-400 pl-1 leading-tight -mt-4">This data helps MediPulse suggest the best times for your pills.</p>
             
             <div className="grid gap-3">
                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50 transition-colors">
@@ -253,7 +275,7 @@ export const Settings = () => {
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-3">
                     <Languages className="text-primary" size={18}/>
-                    <span className="text-sm font-bold text-foreground">Language</span>
+                    <span className="text-sm font-bold text-foreground">{t('Language')}</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Translate the interface to your primary language</p>
               </div>
@@ -261,8 +283,9 @@ export const Settings = () => {
                 value={safeSettings.language} 
                 onChange={(e) => {
                     updateSettings({ language: e.target.value });
+                    i18n.changeLanguage(e.target.value);
                     const langMap: any = { en: 'English', es: 'Spanish', fr: 'French', hi: 'Hindi' };
-                    toast.success(`Language changed to ${langMap[e.target.value] || e.target.value}`);
+                    toast.success(t(`Language changed to ${langMap[e.target.value] || e.target.value}`));
                 }}
                 className="w-full bg-muted rounded-xl p-4 text-sm font-bold border border-border outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all text-foreground"
               >
@@ -316,6 +339,115 @@ export const Settings = () => {
             </div>
           </div>
 
+            {/* Caregiver Alerts */}
+            <div className="space-y-5 pt-5 border-t border-border transition-colors">
+              <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-1">Caregiver Protection</h3>
+              <div className="flex items-start justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-3">
+                    <Shield className="text-rose-500" size={18}/>
+                    <span className="text-sm font-bold text-foreground">Enable Caregiver Alerts</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Notify a family member if critical doses are missed</p>
+                </div>
+                <Switch 
+                  checked={safeSettings.caregiverAlerts?.enabled || false}
+                  onCheckedChange={(checked) => updateSettings({ 
+                    caregiverAlerts: { 
+                      ...(safeSettings.caregiverAlerts || { 
+                        enabled: false, 
+                        name: '', 
+                        email: '', 
+                        phone: '', 
+                        alertOnMissingCritical: true 
+                      }), 
+                      enabled: checked 
+                    } 
+                  })}
+                />
+              </div>
+
+              {safeSettings.caregiverAlerts?.enabled && (
+                <div className="space-y-4 pl-8 pt-1 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Caregiver Name</label>
+                    <Input 
+                      placeholder="e.g. Mom"
+                      value={safeSettings.caregiverAlerts.name}
+                      onChange={(e) => updateSettings({ caregiverAlerts: { ...safeSettings.caregiverAlerts!, name: e.target.value } })}
+                      className="rounded-xl border-border bg-muted h-10 text-sm font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Emergency Email</label>
+                    <Input 
+                      type="email"
+                      placeholder="caregiver@email.com"
+                      value={safeSettings.caregiverAlerts.email}
+                      onChange={(e) => updateSettings({ caregiverAlerts: { ...safeSettings.caregiverAlerts!, email: e.target.value } })}
+                      className="rounded-xl border-border bg-muted h-10 text-sm font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Emergency Phone</label>
+                    <Input 
+                      type="tel"
+                      placeholder="+1 234 567 8900"
+                      value={safeSettings.caregiverAlerts.phone}
+                      onChange={(e) => updateSettings({ caregiverAlerts: { ...safeSettings.caregiverAlerts!, phone: e.target.value } })}
+                      className="rounded-xl border-border bg-muted h-10 text-sm font-bold"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs font-bold text-foreground/80">Alert on Critical Doses ONLY</span>
+                    <Switch 
+                      checked={safeSettings.caregiverAlerts.alertOnMissingCritical}
+                      onCheckedChange={(checked) => updateSettings({ caregiverAlerts: { ...safeSettings.caregiverAlerts!, alertOnMissingCritical: checked } })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Health Devices */}
+          <div className="space-y-5 pt-5 border-t border-border transition-colors">
+            <h3 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-1">Health Devices</h3>
+            
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <Watch className="text-blue-500" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Smartwatch (Bluetooth)</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Sync vitals from BLE enabled watches</p>
+              </div>
+              <Switch 
+                checked={safeSettings.smartwatchConnected}
+                onCheckedChange={(checked) => {
+                    updateSettings({ smartwatchConnected: checked });
+                    toast.success(checked ? 'Smartwatch connected successfully' : 'Smartwatch disconnected');
+                }}
+              />
+            </div>
+
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <Smartphone className="text-rose-500" size={18}/>
+                  <span className="text-sm font-bold text-foreground">Apple Health / Google Fit</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground pl-8 leading-tight">Sync steps and activity data</p>
+              </div>
+              <Switch 
+                checked={safeSettings.appleHealthConnected || safeSettings.googleFitConnected}
+                onCheckedChange={(checked) => {
+                    updateSettings({ appleHealthConnected: checked, googleFitConnected: checked });
+                    toast.success(checked ? 'Health apps connected' : 'Health apps disconnected');
+                }}
+              />
+            </div>
+          </div>
+
           {/* Data Sync */}
           <div className="space-y-5 pt-5 border-t border-border transition-colors">
             <div className="flex items-center justify-between">
@@ -338,17 +470,14 @@ export const Settings = () => {
                       : 'Never synchronized'}
                   </span>
                 </div>
-                <button 
+                <Button 
                   onClick={handleSync}
+                  loading={isSyncing}
                   disabled={isSyncing}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-bold rounded-full transition-all active:scale-95 disabled:opacity-50",
-                    isSyncing && "animate-pulse"
-                  )}
+                  className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-full h-9 shadow-sm"
                 >
-                  <RefreshCw size={14} className={cn(isSyncing && "animate-spin")} />
-                  {isSyncing ? 'Syncing...' : 'Sync Now'}
-                </button>
+                  Sync Now
+                </Button>
               </div>
 
               <div className="pt-2 border-t border-border/50 flex items-center justify-between">
@@ -367,16 +496,34 @@ export const Settings = () => {
           {/* About */}
           <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col items-center gap-2">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-                <img src="/logo.png" alt="MediMind" className="w-8 h-8 opacity-50 grayscale dark:invert" onError={(e) => e.currentTarget.src = 'https://cdn-icons-png.flaticon.com/512/3062/3062634.png'} />
+                <img src="/logo.png" alt="MediPulse" className="w-8 h-8 opacity-50 grayscale dark:invert" onError={(e) => e.currentTarget.src = 'https://cdn-icons-png.flaticon.com/512/3062/3062634.png'} />
             </div>
             <div className="text-center">
-                <p className="text-xs font-bold text-foreground">MediMind AI v2.4.0</p>
+                <p className="text-xs font-bold text-foreground">MediPulse v2.4.0</p>
                 <p className="text-[10px] text-slate-400 font-medium leading-tight">Your Smart Health Records & Medication Companion</p>
             </div>
-            <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-2">© 2026 MediMind Health Inc. All rights reserved.</p>
+            <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-2">© 2026 MediPulse Health Inc. All rights reserved.</p>
           </div>
         </CardContent>
       </Card>
+
+      <Button 
+        variant="ghost" 
+        onClick={() => {
+          toast.promise(async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            logout();
+          }, {
+            loading: 'Signing out...',
+            success: 'Logged out successfully',
+            error: 'Failed to sign out'
+          });
+        }}
+        className="w-full h-14 rounded-2xl text-destructive hover:text-destructive/80 hover:bg-destructive/10 font-bold mb-6"
+      >
+        <LogOut size={18} className="mr-2" />
+        Sign Out from Account
+      </Button>
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import { Meds } from './screens/Meds';
 import { AddMed } from './screens/AddMed';
 import { CalendarView } from './screens/Calendar';
 import { Profile } from './screens/Profile';
+import { TeleConsultationScreen } from './screens/TeleConsultation';
+import { About } from './screens/About';
 import { Tasks } from './screens/Tasks';
 import { Login } from './screens/Login';
 import { Paywall } from './screens/Paywall';
@@ -16,23 +18,46 @@ import { RefillDialog } from './screens/RefillDialog';
 import { Wallet } from './screens/Wallet';
 import { Marketplace } from './screens/Marketplace';
 import { AIDoctor } from './screens/AIDoctor';
+import { AIDietician } from './components/AIDietician';
 import { VitalsTracker } from './components/VitalsTracker';
-import { SOSButton } from './components/SOSButton';
 import { SymptomTracker } from './components/SymptomTracker';
+import { InteractionsChecker } from './components/InteractionsChecker';
+import { PillIdentifier } from './components/PillIdentifier';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { useStore } from './store/useStore';
-import { Medicine, Reminder, Task } from './types';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { notificationService } from './services/notificationService';
+import { Medicine, Reminder, Task, User, Settings } from './types';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { format } from 'date-fns';
-import { AlertCircle, Bell, Check, Clock, X, CheckSquare } from 'lucide-react';
+import { Bell, Check, Clock, X, CheckSquare, Stethoscope, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { LabAnalyzer } from './components/LabAnalyzer';
+import { EmergencySOS } from './components/EmergencySOS';
+import { DietTracker } from './components/DietTracker';
+import { FitnessDashboard } from './components/FitnessDashboard';
+import { HealthChallenges } from './components/HealthChallenges';
+import { MedicationAISuggestion } from './components/MedicationAISuggestion';
+import { AbhaAuthModal } from './components/AbhaAuthModal';
+import { DocumentVault } from './screens/DocumentVault';
+import { HealthChronicles } from './screens/HealthChronicles';
+import { FamilyCircle } from './screens/FamilyCircle';
+import { Leaderboard } from './screens/Leaderboard';
+import { MediPass } from './components/MediPass';
+
+import { Onboarding } from './screens/Onboarding';
+import { handleFirestoreError, OperationType } from './lib/firebase';
 
 export default function App() {
   const isAuthenticated = useStore(state => state.isAuthenticated);
-  const user = useStore(state => state.user);
+  const authLoading = useStore(state => state.authLoading);
+  const setUser = useStore(state => state.setUser);
+  const setAuthLoading = useStore(state => state.setAuthLoading);
   const reminders = useStore(state => state.reminders);
+  // ... rest of imports
   const updateReminderStatus = useStore(state => state.updateReminderStatus);
   const medicines = useStore(state => state.medicines);
   const profiles = useStore(state => state.profiles);
@@ -41,6 +66,69 @@ export default function App() {
   const tasks = useStore(state => state.tasks);
   const updateTaskStatus = useStore(state => state.updateTaskStatus);
   const settings = useStore(state => state.settings);
+  const updateSettings = useStore(state => state.updateSettings);
+  const checkMissedReminders = useStore(state => state.checkMissedReminders);
+  const activeProfileId = useStore(state => state.activeProfileId);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userPath = `users/${firebaseUser.uid}`;
+        const userRef = doc(db, userPath);
+        let userSnap;
+        try {
+          userSnap = await getDoc(userRef);
+        } catch (e) {
+          handleFirestoreError(e, OperationType.GET, userPath);
+          return;
+        }
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as User & { settings?: Settings };
+          setUser(userData);
+          if (userData.settings) {
+            updateSettings(userData.settings);
+          }
+          // Initialize FCM
+          notificationService.initMessaging(firebaseUser.uid);
+        } else {
+          const newUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'New User',
+            email: firebaseUser.email || '',
+            phone: firebaseUser.phoneNumber || '',
+            avatar: firebaseUser.photoURL || '',
+            isPremium: false,
+            tier: 'basic',
+            coins: 100,
+            balance: 0,
+            streak: 0,
+            maxStreak: 0,
+            aiQueriesToday: 0,
+            achievements: [],
+            createdAt: new Date().toISOString(),
+            loginProvider: firebaseUser.providerData[0]?.providerId || 'password'
+          };
+          try {
+            await setDoc(userRef, {
+              ...newUser,
+              createdAt: serverTimestamp()
+            });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, userPath);
+          }
+          setUser(newUser);
+          notificationService.initMessaging(firebaseUser.uid);
+        }
+      } else {
+        setUser(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [setUser, setAuthLoading, updateSettings]);
+  const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
 
   const [activeTab, setActiveTab] = useState('home');
   const [showPaywall, setShowPaywall] = useState(false);
@@ -48,9 +136,25 @@ export default function App() {
   const [showWallet, setShowWallet] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showAIDoctor, setShowAIDoctor] = useState(false);
+  const [showAIDietician, setShowAIDietician] = useState(false);
   const [showVitals, setShowVitals] = useState(false);
+  const [showLabAnalyzer, setShowLabAnalyzer] = useState(false);
+  const [showFitness, setShowFitness] = useState(false);
   const [showSymptoms, setShowSymptoms] = useState(false);
+  const [showPillIdentifier, setShowPillIdentifier] = useState(false);
+  const [showInteractionsChecker, setShowInteractionsChecker] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [showBranding, setShowBranding] = useState(false);
+  const [showSOS, setShowSOS] = useState(false);
+  const [showDiet, setShowDiet] = useState(false);
+  const [showChallenges, setShowChallenges] = useState(false);
+  const [showVault, setShowVault] = useState(false);
+  const [showChronicles, setShowChronicles] = useState(false);
+  const [showTeleConsultation, setShowTeleConsultation] = useState(false);
+  const [showFamilyCircle, setShowFamilyCircle] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showMediPass, setShowMediPass] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(null);
   const [refillMed, setRefillMed] = useState<Medicine | null>(null);
   const [activeReminder, setActiveReminder] = useState<Reminder | null>(null);
@@ -58,8 +162,9 @@ export default function App() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [autoOpenScanner, setAutoOpenScanner] = useState(false);
   const [scannerSource, setScannerSource] = useState<'camera' | 'gallery' | undefined>(undefined);
-  const [scannedMeds, setScannedMeds] = useState<any[]>([]);
+  const [scannedMeds, setScannedMeds] = useState<Medicine[]>([]);
   const [showReviewScan, setShowReviewScan] = useState(false);
+  const lastNotifiedTime = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (settings?.darkMode) {
@@ -99,9 +204,18 @@ export default function App() {
         r.time === currentTime
       );
 
-      if (dueReminder && !activeReminder) {
+      if (dueReminder && !activeReminder && lastNotifiedTime.current !== `${today}-${currentTime}-${dueReminder.id}`) {
         if (!isQuietHours() || settings?.notifications?.enabled) {
           setActiveReminder(dueReminder);
+          lastNotifiedTime.current = `${today}-${currentTime}-${dueReminder.id}`;
+          
+          const med = medicines.find(m => m.id === dueReminder.medicineId);
+          if (settings?.notifications?.pushEnabled) {
+            notificationService.sendReminder(
+              `Time to take ${med?.name || 'Medicine'}`,
+              `Dosage: ${med?.dosage || ''}. Stay on track with your health!`
+            );
+          }
           
           // Play sound based on settings
           const soundFile = settings?.notifications?.reminderSound === 'chime' 
@@ -121,8 +235,9 @@ export default function App() {
         t.dueTime === currentTime
       );
 
-      if (dueTask && !activeTask && !isQuietHours()) {
+      if (dueTask && !activeTask && !isQuietHours() && lastNotifiedTime.current !== `${today}-${currentTime}-${dueTask.id}`) {
         setActiveTask(dueTask);
+        lastNotifiedTime.current = `${today}-${currentTime}-${dueTask.id}`;
         toast.info(`Task Reminder: ${dueTask.title}`, {
           description: `It's time for your scheduled task.`,
           icon: <CheckSquare size={16} className="text-primary" />,
@@ -135,18 +250,76 @@ export default function App() {
           }
         });
       }
+
+      // Check for missed medication reminders (Caregiver Alert logic)
+      checkMissedReminders();
     };
 
     const interval = setInterval(checkReminders, 10000); // Check every 10 seconds
     return () => clearInterval(interval);
-  }, [reminders, isAuthenticated, activeReminder]);
+  }, [reminders, isAuthenticated, activeReminder, medicines, settings, tasks, updateTaskStatus, checkMissedReminders]);
+
+  // Health Tips Notifications
+  useEffect(() => {
+    if (!isAuthenticated || !settings?.notifications?.pushEnabled) return;
+
+    const tips = [
+      "Take medication at the same time daily to build a consistent body rhythm.",
+      "Store your medications in a cool, dry place away from direct sunlight.",
+      "Always check the patient info leaflet if you've missed a dose.",
+      "Keep an updated digital list of all your medications for emergencies.",
+      "Staying hydrated helps your body absorb and process medicine efficiently.",
+      "Never stop a prescribed antibiotic course early, even if you feel better.",
+      "Check with your pharmacist before taking herbal supplements with prescriptions.",
+      "Regular walking for just 15 minutes can significantly improve heart health.",
+      "Poor sleep can weaken your immune system; prioritize 7-9 hours of rest.",
+      "Limit processed sugar intake to reduce chronic inflammation in the body."
+    ];
+
+    const sendDailyTip = () => {
+      const lastTipDate = localStorage.getItem('last_health_tip_date');
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (lastTipDate !== today) {
+        const randomTip = tips[Math.floor(Math.random() * tips.length)];
+        notificationService.sendTip(randomTip);
+        localStorage.setItem('last_health_tip_date', today);
+      }
+    };
+
+    const initialTipTimer = setTimeout(sendDailyTip, 10000); // Send 10s after login if not already sent today
+    return () => clearTimeout(initialTipTimer);
+  }, [isAuthenticated, settings?.notifications?.pushEnabled]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 180, 360] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="w-16 h-16 bg-indigo-600 rounded-[20px] flex items-center justify-center text-white"
+        >
+          <Bell size={32} />
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background transition-colors duration-300 max-w-md mx-auto relative overflow-hidden shadow-2xl">
+      <>
         <Login />
         <Toaster position="top-center" richColors theme={settings.darkMode ? 'dark' : 'light'} />
-      </div>
+      </>
+    );
+  }
+
+  if (!settings.hasCompletedOnboarding) {
+    return (
+      <>
+        <Onboarding />
+        <Toaster position="top-center" richColors theme={settings.darkMode ? 'dark' : 'light'} />
+      </>
     );
   }
 
@@ -155,11 +328,21 @@ export default function App() {
       case 'home': return (
         <Home 
           onOpenAI={() => setShowAI(true)} 
-          onRefillMed={(med) => setRefillMed(med)} 
           onShowMarketplace={() => setShowMarketplace(true)}
-          onShowAIDoctor={() => setShowAIDoctor(true)}
           onShowVitals={() => setShowVitals(true)}
           onShowSymptoms={() => setShowSymptoms(true)}
+          onShowLabAnalyzer={() => setShowLabAnalyzer(true)}
+          onShowFitness={() => setShowFitness(true)}
+          onShowChallenges={() => setShowChallenges(true)}
+          onShowVault={() => setShowVault(true)}
+          onShowDiet={() => setShowDiet(true)}
+          onShowAIDietician={() => setShowAIDietician(true)}
+          onShowFamily={() => setShowFamilyCircle(true)}
+          onShowLeaderboard={() => setShowLeaderboard(true)}
+          onViewHistory={() => setActiveTab('calendar')}
+          onShowPillIdentifier={() => setShowPillIdentifier(true)}
+          onShowInteractions={() => setShowInteractionsChecker(true)}
+          onShowMediPass={() => setShowMediPass(true)}
           onScanComplete={(meds) => {
             setScannedMeds(meds);
             if (meds.length === 1) {
@@ -170,7 +353,7 @@ export default function App() {
           }}
         />
       );
-      case 'meds': return <Meds onSelectMed={(med) => setSelectedMed(med)} onRefillMed={(med) => setRefillMed(med)} onAddMed={() => setActiveTab('add')} />;
+      case 'meds': return <Meds onSelectMed={(med) => setSelectedMed(med)} onRefillMed={(med) => setRefillMed(med)} onAddMed={() => setActiveTab('add')} onShowAISuggestions={() => setShowAISuggestions(true)} />;
       case 'add': return (
         <AddMed 
           onComplete={() => {
@@ -186,15 +369,25 @@ export default function App() {
       );
       case 'calendar': return <CalendarView />;
       case 'tasks': return <Tasks />;
-      case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} onShowWallet={() => setShowWallet(true)} />;
+      case 'profile': return <Profile onShowPaywall={() => setShowPaywall(true)} onShowBranding={() => setShowBranding(true)} onShowWallet={() => setShowWallet(true)} onShowAbout={() => setShowAbout(true)} onShowTeleConsultation={() => setShowTeleConsultation(true)} />;
       default: return (
         <Home 
           onOpenAI={() => setShowAI(true)} 
-          onRefillMed={(med) => setRefillMed(med)} 
           onShowMarketplace={() => setShowMarketplace(true)}
-          onShowAIDoctor={() => setShowAIDoctor(true)}
           onShowVitals={() => setShowVitals(true)}
           onShowSymptoms={() => setShowSymptoms(true)}
+          onShowLabAnalyzer={() => setShowLabAnalyzer(true)}
+          onShowFitness={() => setShowFitness(true)}
+          onShowChallenges={() => setShowChallenges(true)}
+          onShowVault={() => setShowVault(true)}
+          onShowDiet={() => setShowDiet(true)}
+          onShowAIDietician={() => setShowAIDietician(true)}
+          onShowFamily={() => setShowFamilyCircle(true)}
+          onShowLeaderboard={() => setShowLeaderboard(true)}
+          onViewHistory={() => setActiveTab('calendar')}
+          onShowPillIdentifier={() => setShowPillIdentifier(true)}
+          onShowInteractions={() => setShowInteractionsChecker(true)}
+          onShowMediPass={() => setShowMediPass(true)}
           onScanComplete={(meds) => {
             setScannedMeds(meds);
             if (meds.length === 1) {
@@ -266,7 +459,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-background transition-colors duration-300">
+    <div className="min-h-screen relative overflow-hidden max-w-md mx-auto shadow-2xl bg-background transition-colors duration-300 pt-safe pb-safe">
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -281,8 +474,6 @@ export default function App() {
       </AnimatePresence>
 
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <SOSButton />
       
       {/* Smart Reminder Popup */}
       <AnimatePresence>
@@ -347,6 +538,12 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showAISuggestions && (
+          <MedicationAISuggestion onClose={() => setShowAISuggestions(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showPaywall && (
           <Paywall onClose={() => setShowPaywall(false)} />
         )}
@@ -363,24 +560,29 @@ export default function App() {
         </DrawerContent>
       </Drawer>
 
-      <Drawer open={showAI} onOpenChange={setShowAI}>
-        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>AI Assistant</DrawerTitle>
-          </DrawerHeader>
-          <AIAssistant 
-            onClose={() => setShowAI(false)} 
-            contextMedicine={selectedMed} 
-            onScanComplete={(meds) => {
-              setShowAI(false);
-              setScannedMeds(meds);
-              if (meds.length > 0) {
-                setShowReviewScan(true);
-              }
-            }}
-          />
-        </DrawerContent>
-      </Drawer>
+      <AnimatePresence>
+        {showAI && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <AIAssistant 
+              onClose={() => setShowAI(false)} 
+              contextMedicine={selectedMed} 
+              onScanComplete={(meds) => {
+                setShowAI(false);
+                setScannedMeds(meds);
+                if (meds.length > 0) {
+                  setShowReviewScan(true);
+                }
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Drawer open={showReviewScan} onOpenChange={setShowReviewScan}>
         <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
@@ -416,14 +618,30 @@ export default function App() {
         </DrawerContent>
       </Drawer>
 
-      <Drawer open={showMarketplace} onOpenChange={setShowMarketplace}>
-        <DrawerContent className="h-[90vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>Rate</DrawerTitle>
-          </DrawerHeader>
-          <Marketplace onClose={() => setShowMarketplace(false)} />
-        </DrawerContent>
-      </Drawer>
+      <AnimatePresence>
+        {showAbout && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <About onClose={() => setShowAbout(false)} />
+          </motion.div>
+        )}
+        {showMarketplace && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <Marketplace onClose={() => setShowMarketplace(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Drawer open={!!refillMed} onOpenChange={(open) => !open && setRefillMed(null)}>
         <DrawerContent className="h-[70vh] rounded-t-[32px] border-none shadow-2xl overflow-hidden">
@@ -443,6 +661,108 @@ export default function App() {
             className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
           >
             <AIDoctor onClose={() => setShowAIDoctor(false)} />
+          </motion.div>
+        )}
+        {showAIDietician && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <AIDietician onClose={() => setShowAIDietician(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showChallenges && (
+          <HealthChallenges onClose={() => setShowChallenges(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showVault && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <DocumentVault onClose={() => setShowVault(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTeleConsultation && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <TeleConsultationScreen onBack={() => setShowTeleConsultation(false)} />
+          </motion.div>
+        )}
+        {showFamilyCircle && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <FamilyCircle onClose={() => setShowFamilyCircle(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLeaderboard && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <Leaderboard onClose={() => setShowLeaderboard(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showMediPass && activeProfile && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[120] bg-slate-900 max-w-md mx-auto"
+          >
+            <MediPass 
+              profile={activeProfile} 
+              medicines={medicines}
+              onClose={() => setShowMediPass(false)} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showChronicles && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[100] bg-background max-w-md mx-auto"
+          >
+            <HealthChronicles onClose={() => setShowChronicles(false)} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -474,6 +794,72 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showPillIdentifier && <PillIdentifier onClose={() => setShowPillIdentifier(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showInteractionsChecker && <InteractionsChecker onClose={() => setShowInteractionsChecker(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLabAnalyzer && (
+          <LabAnalyzer onClose={() => setShowLabAnalyzer(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showFitness && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, y: 50 }}
+            className="fixed inset-0 z-[100] bg-background"
+          >
+            <FitnessDashboard onClose={() => setShowFitness(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSOS && (
+          <EmergencySOS onClose={() => setShowSOS(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDiet && (
+          <DietTracker onClose={() => setShowDiet(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAuthenticated && settings?.abhaConnected === false && (
+          <AbhaAuthModal onClose={() => updateSettings({ abhaConnected: undefined })} />
+        )}
+      </AnimatePresence>
+
+      <div className="fixed z-[90] bottom-24 w-full max-w-md mx-auto right-0 left-0 pointer-events-none flex flex-col items-end px-4 gap-3">
+        <button 
+          onClick={() => setShowAIDietician(true)}
+          className="pointer-events-auto w-14 h-14 bg-indigo-600 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center text-white hover:bg-indigo-700 hover:scale-105 transition-all"
+        >
+          <Utensils size={24} />
+        </button>
+        <button 
+          onClick={() => setShowAIDoctor(true)}
+          className="pointer-events-auto w-14 h-14 bg-emerald-600 rounded-full shadow-[0_0_20px_rgba(5,150,105,0.5)] flex items-center justify-center text-white hover:bg-emerald-700 hover:scale-105 transition-all"
+        >
+          <Stethoscope size={24} />
+        </button>
+        <button 
+          onClick={() => setShowSOS(true)}
+          className="pointer-events-auto w-14 h-14 bg-red-600 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.5)] flex items-center justify-center text-white hover:bg-red-700 hover:scale-105 transition-all"
+        >
+          <span className="font-black text-sm uppercase tracking-widest">SOS</span>
+        </button>
+      </div>
 
       <Toaster position="top-center" richColors />
     </div>

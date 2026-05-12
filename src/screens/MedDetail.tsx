@@ -127,6 +127,43 @@ export const MedDetail: React.FC<MedDetailProps> = ({ medicine, onClose }) => {
                   </CardContent>
                 </Card>
               )}
+              
+              {/* AI-Predictive Refill Assistant */}
+              <Card className="border-none bg-primary/10 border-l-4 border-primary rounded-xl overflow-hidden shadow-sm">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Predicted Refill Date</p>
+                      <p className="text-lg font-display font-bold text-primary leading-none">
+                        {(() => {
+                          if (medicine.stock === 0) return 'Out of Stock';
+                          const dailyDoseCount = medicine.times.length;
+                          if (dailyDoseCount === 0) return 'N/A';
+                          const daysLeft = Math.floor(medicine.stock / dailyDoseCount);
+                          const refillDate = new Date();
+                          refillDate.setDate(refillDate.getDate() + daysLeft);
+                          return format(refillDate, 'MMM dd, yyyy');
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="rounded-xl h-10 px-4 bg-primary text-white shadow-lg shadow-primary/20"
+                    onClick={() => {
+                      toast.success("Notification Sent", {
+                        description: `A refill reminder for ${medicine.name} has been sent to your pharmacy and emergency contact.`
+                      });
+                    }}
+                  >
+                    Notify
+                  </Button>
+                </CardContent>
+              </Card>
+
               <div className="grid grid-cols-2 gap-4">
                 <Card className="border-none bg-muted/50 rounded-2xl shadow-sm">
                   <CardContent className="p-4 space-y-1">

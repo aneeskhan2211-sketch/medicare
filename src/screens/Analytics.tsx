@@ -4,22 +4,95 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Cell, PieChart, Pie
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  TrendingUp, Calendar, CheckCircle2, XCircle, 
-  Download, Flame, Trophy, Info, Lock, Activity, Target, Zap, ChevronRight, FileText, Sparkles, Sun, Moon
+  CheckCircle2, XCircle, 
+  Download, Flame, Trophy, Lock, Activity, Zap, ChevronRight, FileText, Sparkles, Sun, Moon,
+  Pill, Droplets, Syringe, ClipboardList, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { MedicalBackground } from '../components/MedicalBackground';
+import { DoctorReportWidget } from '../components/DoctorReportWidget';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+import { LabTrendChart } from '../components/LabTrendChart';
+import { getHealthTrajectory } from '../services/aiService';
 
 export const Analytics: React.FC = () => {
-  const { reminders, isPremium, user, getAdherenceData, settings, updateSettings } = useStore();
+    const { reminders, isPremium, user, getAdherenceData, settings, updateSettings, activeProfileId, profiles, medicines, vitals } = useStore();
+  const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
+  const [trajectory, setTrajectory] = React.useState<any>(null);
+  const [isGeneratingTrajectory, setIsGeneratingTrajectory] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchTrajectory = async () => {
+      if (!isPremium || trajectory) return;
+      setIsGeneratingTrajectory(true);
+      try {
+        const data = await getHealthTrajectory(vitals, activeProfile);
+        setTrajectory(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsGeneratingTrajectory(false);
+      }
+    };
+    fetchTrajectory();
+  }, [isPremium, activeProfileId, vitals, activeProfile]);
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split('T')[0];
+  }).reverse();
+
+  const vitalsTrendData = React.useMemo(() => {
+    return last7Days.map(dateStr => {
+      const dayVitals = vitals.filter(v => v.profileId === activeProfileId && v.timestamp.startsWith(dateStr));
+      
+      const hrItems = dayVitals.filter(v => v.type === 'heart_rate' && !isNaN(Number(v.value)));
+      const avgHr = hrItems.length > 0 ? Math.round(hrItems.reduce((acc, v) => acc + Number(v.value), 0) / hrItems.length) : null;
+      
+      const spo2Items = dayVitals.filter(v => v.type === 'spo2' && !isNaN(Number(v.value)));
+      const avgSpo2 = spo2Items.length > 0 ? Math.round(spo2Items.reduce((acc, v) => acc + Number(v.value), 0) / spo2Items.length) : null;
+
+      return {
+        date: format(parseISO(dateStr), 'EEE'),
+        fullDate: dateStr,
+        heartRate: avgHr,
+        spo2: avgSpo2
+      };
+    });
+  }, [vitals, activeProfileId, last7Days]);
+
+  const individualAdherence = React.useMemo(() => {
+    return medicines
+      .filter(m => m.profileId === activeProfileId || !m.profileId) // if profileId exists, match it
+      .map(med => {
+      const medReminders = reminders.filter(r => r.medicineId === med.id && last7Days.includes(r.date));
+      const total = medReminders.length;
+      const taken = medReminders.filter(r => r.status === 'taken').length;
+      const missed = total - taken;
+      const percent = total > 0 ? Math.round((taken / total) * 100) : 0;
+      return { ...med, total, taken, missed, percent };
+    }).filter(med => med.total > 0).sort((a, b) => b.percent - a.percent);
+  }, [medicines, reminders, last7Days, activeProfileId]);
+
+  const getMedIcon = (type: string) => {
+    switch (type) {
+      case 'liquid': return <Droplets />;
+      case 'injection': return <Syringe />;
+      case 'topical': return <ClipboardList />;
+      default: return <Pill />;
+    }
+  };
 
   // Get real adherence data from store
   const adherenceData = getAdherenceData();
@@ -33,6 +106,26 @@ export const Analytics: React.FC = () => {
   const adherencePercent = adherenceData.reduce((acc, curr) => acc + curr.total, 0) > 0 
     ? Math.round((adherenceData.reduce((acc, curr) => acc + curr.taken, 0) / adherenceData.reduce((acc, curr) => acc + curr.total, 0)) * 100) 
     : 0;
+
+  const { get30DayAdherenceData } = useStore();
+  const heartbeatData = React.useMemo(() => {
+    const rawData = get30DayAdherenceData();
+    const data: { time: string; value: number; date: string; opacity: number }[] = [];
+    
+    rawData.forEach((day, dayIdx) => {
+      const rate = day.total > 0 ? day.taken / day.total : 0.5;
+      const baseline = 30;
+      const pulseHeight = 40 * rate;
+      const dateLabel = format(parseISO(day.date), 'MMM d');
+      
+      // ECG-style pulses per day
+      data.push({ time: `${day.date}-1`, value: baseline, date: dateLabel, opacity: 0.3 });
+      data.push({ time: `${day.date}-2`, value: baseline + pulseHeight, date: dateLabel, opacity: 1 });
+      data.push({ time: `${day.date}-3`, value: baseline - (pulseHeight * 0.3), date: dateLabel, opacity: 1 });
+      data.push({ time: `${day.date}-4`, value: baseline, date: dateLabel, opacity: 0.3 });
+    });
+    return data;
+  }, [get30DayAdherenceData]);
 
   const totalTaken = adherenceData.reduce((acc, curr) => acc + curr.taken, 0);
   const totalDoses = adherenceData.reduce((acc, curr) => acc + curr.total, 0);
@@ -61,10 +154,75 @@ export const Analytics: React.FC = () => {
   const healthScore = getHealthScore();
 
   const handleExportPDF = () => {
-    toast.success('Generating health report...', {
-      description: 'Your monthly adherence report is being prepared.',
+    toast.info('Generating health report...', {
+      description: 'Your PDF will download shortly.',
       icon: <FileText size={16} className="text-indigo-500" />
     });
+
+    setTimeout(() => {
+      try {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(24);
+        doc.setTextColor(91, 61, 245);
+        doc.text('Vitality Report', 14, 25);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${format(new Date(), 'MMMM d, yyyy')}`, 14, 34);
+        doc.text(`Patient: ${activeProfile?.name || 'User'}`, 14, 40);
+
+        // Health Summary
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text('Monthly Overview', 14, 55);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(60);
+        doc.text(`Overall Adherence: ${adherencePercent}%`, 14, 65);
+        doc.text(`Current Streak: ${user?.streak || 0} days`, 14, 73);
+        doc.text(`Health Score: ${healthScore}/100`, 14, 81);
+
+        // AI Clinical Insights
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text('AI Clinical Analysis', 14, 98);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        const insightText = `Based on your ${adherencePercent}% adherence and consistent log patterns, your metabolic health is stabilized. ${healthScore < 80 ? 'We recommend focusing on your afternoon doses to boost your score.' : 'Your consistency is exceptional, suggesting high efficacy of treatment.'}`;
+        const splitText = doc.splitTextToSize(insightText, 180);
+        doc.text(splitText, 14, 108);
+
+        // 7-Day Adherence Log
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text('Adherence Log (Last 7 Days)', 14, 138);
+
+        const tableData = weeklyData.map(day => [
+          format(parseISO(day.fullDate), 'MMM d, yyyy'),
+          day.taken.toString(),
+          day.missed.toString(),
+          day.taken + day.missed > 0 ? `${Math.round((day.taken / (day.taken + day.missed)) * 100)}%` : '0%'
+        ]);
+
+        (doc as any).autoTable({
+          startY: 144,
+          head: [['Date', 'Doses Taken', 'Missed', 'Adherence']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [91, 61, 245], textColor: [255, 255, 255] },
+          styles: { fontSize: 10, cellPadding: 4 }
+        });
+
+        doc.save(`Health_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        toast.success('Report downloaded successfully!');
+      } catch (error) {
+        console.error('Failed to generate PDF', error);
+        toast.error('Failed to generate PDF report.');
+      }
+    }, 500);
   };
 
   return (
@@ -101,6 +259,8 @@ export const Analytics: React.FC = () => {
 
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-8 pb-32 relative z-10">
+          <DoctorReportWidget />
+          
           {/* Adherence Ring & Main Stats */}
           <section className="grid grid-cols-2 gap-4">
             <Card className="border-none bg-primary text-white rounded-[32px] card-shadow p-6 flex flex-col items-center justify-center gap-2 relative overflow-hidden">
@@ -119,39 +279,187 @@ export const Analytics: React.FC = () => {
             </Card>
           </section>
 
-          {/* AI Clinical Insight Card */}
+          {/* AI Clinical Insight & Heartbeat Card */}
           <section className="space-y-4">
-            <h3 className="font-display font-bold text-lg text-foreground px-1 flex items-center gap-2">
-              <Sparkles size={20} className="text-primary" /> AI Clinical Analysis
-            </h3>
-            <Card className="border-none bg-gradient-to-br from-indigo-500 to-primary text-white rounded-[32px] p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                <Activity className="text-rose-500" size={20} /> Advanced Adherence Analytics
+              </h3>
+              <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-bold">
+                HEARTBEAT CHART
+              </Badge>
+            </div>
+            <Card className="border-none bg-card rounded-[32px] premium-card p-6 border border-border shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+              
+              <div className="h-48 w-full mb-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={heartbeatData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis dataKey="date" hide />
+                    <YAxis hide domain={[0, 100]} />
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-slate-900 border border-border p-2 rounded-xl shadow-lg">
+                              <p className="text-[10px] font-bold text-muted-foreground">{payload[0].payload.date}</p>
+                              <p className="text-xs font-black text-rose-500">Pulse: {Math.round(payload[0].value as number)}%</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="#f43f5e" 
+                      strokeWidth={3} 
+                      dot={false}
+                      animationDuration={2000}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
               <div className="space-y-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-                    <Activity size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Sparkles size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm">Vitality Report</h4>
-                    <p className="text-[10px] opacity-70 font-bold uppercase">72 Hour Analysis</p>
+                    <h4 className="font-bold text-sm text-foreground">AI Clinical Pulse Analysis</h4>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">30-Day Velocity</p>
                   </div>
                 </div>
                 
-                <p className="text-sm font-medium leading-relaxed">
-                  Based on your {adherencePercent}% adherence and consistent log patterns, your metabolic health is stabilized. {healthScore < 80 ? 'We recommend focusing on your afternoon doses to boost your score.' : 'Your consistency is exceptional, suggesting high efficacy of treatment.'}
+                <p className="text-sm font-medium leading-relaxed text-foreground/80">
+                  Your 30-day "Heartbeat" shows a consistency rating of {adherencePercent}%. {adherencePercent > 80 ? 'Your recovery pulse is strong and rhythmic.' : 'We detected some irregularities in your afternoon doses.'} Maintaining this rhythm is critical for optimal efficacy.
                 </p>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="bg-white/10 rounded-2xl p-3">
-                    <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Consistency</p>
-                    <p className="text-xs font-bold">{adherencePercent >= 90 ? 'Critical' : 'High'}</p>
+                <div className="grid grid-cols-3 gap-3 pt-2">
+                  <div className="bg-muted/50 rounded-2xl p-3 border border-border">
+                    <p className="text-[9px] font-bold uppercase text-muted-foreground mb-1">Consistency</p>
+                    <p className="text-xs font-black text-foreground">{adherencePercent}%</p>
                   </div>
-                  <div className="bg-white/10 rounded-2xl p-3">
-                    <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Metabolic Rate</p>
-                    <p className="text-xs font-bold">Stable</p>
+                  <div className="bg-muted/50 rounded-2xl p-3 border border-border">
+                    <p className="text-[9px] font-bold uppercase text-muted-foreground mb-1">Velocity</p>
+                    <p className="text-xs font-black text-emerald-500">Fast</p>
+                  </div>
+                  <div className="bg-muted/50 rounded-2xl p-3 border border-border">
+                    <p className="text-[9px] font-bold uppercase text-muted-foreground mb-1">Status</p>
+                    <p className="text-xs font-black text-blue-500">Stable</p>
                   </div>
                 </div>
               </div>
+            </Card>
+          </section>
+
+          {/* Lab Result Trends (D3.js) */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                <FileText className="text-indigo-500" size={20} /> AI Lab Analysis
+              </h3>
+              <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-500 border-none font-bold">12 MONTH TREND</Badge>
+            </div>
+            <Card className="border-none bg-card rounded-[32px] premium-card p-6 border border-border transition-colors">
+              <div className="space-y-8">
+                <LabTrendChart metricName="Glucose" />
+                <div className="border-t border-border pt-8">
+                  <LabTrendChart metricName="Hemoglobin" />
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          {/* Health Trajectory Prediction */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                <Activity className="text-emerald-500" size={20} /> AI Health Trajectory
+              </h3>
+              {!isPremium && <Badge className="bg-amber-100 text-amber-700 border-none font-bold uppercase tracking-widest text-[8px]">PREMIUM ONLY</Badge>}
+            </div>
+            <Card className={cn(
+              "border-none bg-card rounded-[32px] premium-card p-6 border border-border relative overflow-hidden transition-all",
+              !isPremium && "opacity-50"
+            )}>
+              {isGeneratingTrajectory ? (
+                <div className="h-48 flex flex-col items-center justify-center space-y-4">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <p className="text-sm font-bold text-muted-foreground animate-pulse">Predicting Health Trajectory...</p>
+                </div>
+              ) : trajectory ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center",
+                        trajectory.trajectory === 'improving' ? "bg-emerald-100 text-emerald-600" :
+                        trajectory.trajectory === 'declining' ? "bg-rose-100 text-rose-600" : "bg-blue-100 text-blue-600"
+                      )}>
+                        <Activity size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest opacity-40">Trajectory</h4>
+                        <p className={cn(
+                          "text-lg font-black capitalize",
+                          trajectory.trajectory === 'improving' ? "text-emerald-500" :
+                          trajectory.trajectory === 'declining' ? "text-rose-500" : "text-blue-500"
+                        )}>{trajectory.trajectory}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-muted-foreground">Confidence</p>
+                      <p className="text-lg font-black text-foreground">{Math.round(trajectory.confidence * 100)}%</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">12-Month Risk Analysis</p>
+                    <div className="grid grid-cols-1 gap-3">
+                      {trajectory.riskAnalysis?.map((risk: any, i: number) => (
+                        <div key={i} className="p-3 rounded-2xl bg-muted/50 border border-border flex items-center gap-3">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            risk.riskLevel === 'high' ? "bg-rose-500" :
+                            risk.riskLevel === 'moderate' ? "bg-amber-500" : "bg-emerald-500"
+                          )} />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs font-bold text-foreground">{risk.condition}</p>
+                              <Badge className={cn(
+                                "text-[8px] font-black uppercase",
+                                risk.riskLevel === 'high' ? "bg-rose-500" :
+                                risk.riskLevel === 'moderate' ? "bg-amber-500" : "bg-emerald-500"
+                              )}>{risk.riskLevel} Risk</Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1">{risk.reason}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {!isPremium && <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                        <Lock size={24} />
+                      </div>
+                      <h4 className="text-lg font-bold">Predictive Health Reports</h4>
+                      <p className="text-xs text-muted-foreground">Upgrade to Vitality Premium to see your 12-month health AI predictions.</p>
+                      <Button className="rounded-xl px-8 h-12">Upgrade Now</Button>
+                    </div>
+                  </div>}
+                </div>
+              ) : (
+                <div className="h-48 flex flex-col items-center justify-center bg-muted/20 rounded-3xl border border-dashed border-border p-6 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">Trajectory analysis unavailable.</p>
+                  {!isPremium && <p className="text-xs text-primary font-bold mt-2 cursor-pointer">Upgrade to Premium</p>}
+                </div>
+              )}
             </Card>
           </section>
 
@@ -208,6 +516,107 @@ export const Analytics: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
                   <span className="text-xs font-bold text-muted-foreground">Missed</span>
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          {/* Long-Term Trends (30 Days) */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-display font-bold text-lg text-foreground">30-Day Health Correlation</h3>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-bold">Trends</Badge>
+            </div>
+            <Card className="border-none bg-card rounded-[32px] premium-card p-6 border border-border transition-colors">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[...Array(30).keys()].map(i => ({
+                    date: `Day ${i+1}`,
+                    calories: 1800 + Math.random() * 500,
+                    activity: 5000 + Math.random() * 5000,
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border" />
+                    <XAxis dataKey="date" hide />
+                    <YAxis yAxisId="left" hide />
+                    <YAxis yAxisId="right" orientation="right" hide />
+                    <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '12px' }} />
+                    <Line yAxisId="left" type="monotone" dataKey="calories" name="Calories" stroke="#84cc16" strokeWidth={3} dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="activity" name="Activity (Steps)" stroke="#f59e0b" strokeWidth={3} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-center gap-8 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-lime-500" />
+                  <span className="text-xs font-bold text-muted-foreground">Calorie Intake</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                  <span className="text-xs font-bold text-muted-foreground">Steps Taken</span>
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          {/* Vitals Trend Chart */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-display font-bold text-lg text-foreground">Vitals Trend</h3>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-bold">Last 7 Days</Badge>
+            </div>
+            <Card className="border-none bg-card rounded-[32px] premium-card p-6 border border-border transition-colors">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={vitalsTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fontSize: 12, fill: 'currentColor', fontWeight: 600}} 
+                      className="text-muted-foreground"
+                      dy={10}
+                    />
+                    <YAxis yAxisId="left" hide domain={['auto', 'auto']} />
+                    <YAxis yAxisId="right" orientation="right" hide domain={['auto', 'auto']} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '12px' }}
+                      cursor={{ stroke: 'currentColor', strokeWidth: 1, strokeDasharray: '3 3', opacity: 0.1 }}
+                      labelStyle={{ color: 'var(--foreground)', fontWeight: 'bold' }}
+                    />
+                    <Line 
+                      yAxisId="left"
+                      type="monotone" 
+                      dataKey="heartRate" 
+                      name="Heart Rate"
+                      stroke="#EF4444" 
+                      strokeWidth={4} 
+                      dot={{ r: 4, fill: '#EF4444', strokeWidth: 2, stroke: 'var(--card)' }}
+                      activeDot={{ r: 6, fill: '#EF4444', strokeWidth: 3, stroke: 'var(--card)' }}
+                      connectNulls
+                    />
+                    <Line 
+                      yAxisId="right"
+                      type="monotone" 
+                      dataKey="spo2" 
+                      name="SpO2"
+                      stroke="#06B6D4" 
+                      strokeWidth={4} 
+                      dot={{ r: 4, fill: '#06B6D4', strokeWidth: 2, stroke: 'var(--card)' }}
+                      activeDot={{ r: 6, fill: '#06B6D4', strokeWidth: 3, stroke: 'var(--card)' }}
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-center gap-8 mt-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className="text-xs font-bold text-muted-foreground">Heart Rate (BPM)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
+                  <span className="text-xs font-bold text-muted-foreground">SpO2 (%)</span>
                 </div>
               </div>
             </Card>
@@ -306,6 +715,72 @@ export const Analytics: React.FC = () => {
                 </div>
               )}
             </Card>
+          </section>
+
+          {/* Medicine Adherence Breakdown */}
+          <section className="space-y-4">
+            <h3 className="font-display font-bold text-lg text-foreground px-1">Medicine Adherence</h3>
+            <div className="space-y-3">
+              {individualAdherence.length === 0 ? (
+                <Card className="border-none bg-card rounded-[24px] p-6 flex flex-col items-center justify-center text-center">
+                  <p className="text-sm font-medium text-muted-foreground">No data available for the last 7 days.</p>
+                </Card>
+              ) : (
+                individualAdherence.map(med => {
+                  const Icon = getMedIcon(med.type);
+                  return (
+                    <Card key={med.id} className="border-none bg-card rounded-[24px] premium-card p-4 border border-border transition-colors">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0"
+                          style={{ backgroundColor: `${med.color}20`, color: med.color }}
+                        >
+                          {React.cloneElement(Icon, { size: 20 })}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-foreground text-sm truncate">{med.name}</h4>
+                          <p className="text-xs text-muted-foreground font-medium">{med.dosage}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-base" style={{ color: med.percent >= 80 ? '#10B981' : med.percent >= 50 ? '#F59E0B' : '#EF4444' }}>
+                            {med.percent}%
+                          </p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Adherence</p>
+                        </div>
+                      </div>
+                      
+                      {/* Breakdown Stats */}
+                      <div className="flex justify-between items-center mb-2 px-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{med.taken} Taken</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{med.missed} Missed</span>
+                          <div className="w-2 h-2 rounded-full bg-red-500" />
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar Container */}
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
+                        {med.percent > 0 && (
+                          <div 
+                            className="h-full bg-emerald-500 transition-all rounded-r-full"
+                            style={{ width: `${med.percent}%` }}
+                          />
+                        )}
+                        {med.missed > 0 && (
+                          <div 
+                            className="h-full bg-red-500 transition-all rounded-l-full"
+                            style={{ width: `${100 - med.percent}%` }}
+                          />
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </section>
 
           {/* Dose Breakdown */}

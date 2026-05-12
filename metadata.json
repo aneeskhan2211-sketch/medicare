@@ -1,5 +1,5 @@
 {
-  "name": "Medicare",
+  "name": "MediPulse",
   "description": "Track medicines, manage family health, and get AI-powered reminders — all in one place.",
-  "requestFramePermissions": ["camera", "bluetooth"]
+  "requestFramePermissions": ["camera", "bluetooth", "microphone", "geolocation", "notifications"]
 }

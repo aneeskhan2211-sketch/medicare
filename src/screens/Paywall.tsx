@@ -52,7 +52,7 @@ export const Paywall: React.FC<PaywallProps> = ({ onClose }) => {
 
   const handleUpgrade = (tier: typeof plans[0]['id']) => {
     setTier(tier);
-    toast.success(`Welcome to MediMind ${tier.replace('_', ' ').toUpperCase()}!`);
+    toast.success(`Welcome to MediPulse ${tier.replace('_', ' ').toUpperCase()}!`);
     onClose();
   };
 

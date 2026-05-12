@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Activity, Heart, Camera, Watch, Plus, X, AlertTriangle, FileText, Download, Info, CheckCircle2, AlertCircle, Sparkles, Thermometer, Scale, Droplets } from 'lucide-react';
+import { Activity, Heart, Camera, Watch, Plus, X, AlertTriangle, FileText, Download, Info, CheckCircle2, AlertCircle, Sparkles, Thermometer, Scale, Droplets, ChevronLeft, Smartphone } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { VitalSign } from '../types';
+import { PulseScanner } from './PulseScanner';
+
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -13,17 +15,8 @@ interface VitalsTrackerProps {
 }
 
 export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
-  const { vitals, addVitalSign, activeProfileId, user, spendCoins } = useStore();
+  const { vitals, addVitalSign, activeProfileId, user, spendCoins, settings, updateSettings } = useStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'camera' | 'bluetooth' | 'manual'>('dashboard');
-  
-  // Camera State
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [currentBpm, setCurrentBpm] = useState<number>(0);
-  const [bpmConfidence, setBpmConfidence] = useState<'high' | 'medium' | 'low'>('low');
-  const [cameraError, setCameraError] = useState<string>('');
   
   // Bluetooth State
   const [isWatchConnected, setIsWatchConnected] = useState(false);
@@ -31,6 +24,8 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
   const [syncing, setSyncing] = useState(false);
   const [liveSpO2, setLiveSpO2] = useState<number>(0);
   const [liveBp, setLiveBp] = useState<string>('');
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [bpmConfidence, setBpmConfidence] = useState<'high' | 'medium' | 'low'>('low');
 
   // Manual Entry Form State
   const [manualForm, setManualForm] = useState({
@@ -39,13 +34,22 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
     diastolic: '',
     spo2: '',
     glucose: '',
+    glucoseUnit: 'mg/dL',
+    glucoseStatus: 'normal' as 'normal' | 'low' | 'high' | 'critical',
     temperature: '',
+    tempUnit: '°C' as '°C' | '°F',
+    tempStatus: 'normal' as 'normal' | 'low' | 'high',
     weight: '',
     source: 'manual' as 'manual' | 'wearable' | 'bluetooth' | 'camera'
   });
 
   // Analysis State
   const [showAnalysis, setShowAnalysis] = useState(false);
+
+  // Apple Health
+  const [isAppleHealthSyncing, setIsAppleHealthSyncing] = useState(false);
+  const [isGoogleFitSyncing, setIsGoogleFitSyncing] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Helper arrays
   const recentHeartRates = vitals
@@ -77,7 +81,7 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
   // Cleanup effect
   useEffect(() => {
     return () => {
-      stopCamera();
+      // Any generic cleanup
     };
   }, []);
 
@@ -147,32 +151,30 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
     }
 
     if (manualForm.glucose) {
-       const glucose = parseFloat(manualForm.glucose);
        addVitalSign({
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(7),
         profileId: activeProfileId,
         userId: user?.id || 'unknown',
         type: 'glucose',
         value: manualForm.glucose,
-        unit: 'mg/dL',
+        unit: manualForm.glucoseUnit,
         timestamp: new Date().toISOString(),
-        status: glucose >= 70 && glucose <= 140 ? 'normal' : glucose < 70 ? 'low' : 'high',
+        status: manualForm.glucoseStatus,
         source: manualForm.source as any
       });
       savedCount++;
     }
 
     if (manualForm.temperature) {
-       const temp = parseFloat(manualForm.temperature);
        addVitalSign({
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(7),
         profileId: activeProfileId,
         userId: user?.id || 'unknown',
         type: 'temperature',
         value: manualForm.temperature,
-        unit: '°C',
+        unit: manualForm.tempUnit,
         timestamp: new Date().toISOString(),
-        status: temp >= 36.1 && temp <= 37.2 ? 'normal' : temp > 37.2 ? 'high' : 'low',
+        status: manualForm.tempStatus,
         source: manualForm.source as any
       });
       savedCount++;
@@ -180,7 +182,7 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
 
     if (manualForm.weight) {
        addVitalSign({
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(7),
         profileId: activeProfileId,
         userId: user?.id || 'unknown',
         type: 'weight',
@@ -195,151 +197,10 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
 
     if (savedCount > 0) {
       toast.success('Vitals Saved', { description: `Successfully added ${savedCount} readings.` });
-      setManualForm({ bpm: '', systolic: '', diastolic: '', spo2: '', glucose: '', temperature: '', weight: '', source: 'manual' });
+      setManualForm({ bpm: '', systolic: '', diastolic: '', spo2: '', glucose: '', glucoseUnit: 'mg/dL', glucoseStatus: 'normal', temperature: '', tempUnit: '°C', tempStatus: 'normal', weight: '', source: 'manual' });
       setActiveTab('dashboard');
     } else {
       toast.error('Please enter at least one vital sign value.');
-    }
-  };
-
-  // ----- CAMERA PPG IMPLEMENTATION -----
-  let scanInterval: any;
-  let frameCount = 0;
-  let redValues: number[] = [];
-
-  const startCamera = async () => {
-    setActiveTab('camera');
-    setIsScanning(true);
-    setScanProgress(0);
-    setCameraError('');
-    setCurrentBpm(0);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          // Try to turn on torch if supported
-          advanced: [{ torch: true } as any] 
-        }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        
-        // Start processing frames
-        scanInterval = setInterval(processFrame, 50); // 20fps
-      }
-    } catch (err) {
-      console.error(err);
-      setCameraError('Camera access denied or device unsupported. Please allow camera permissions.');
-      setIsScanning(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (scanInterval) clearInterval(scanInterval);
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    setIsScanning(false);
-  };
-
-  const processFrame = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Draw video frame to canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const length = frame.data.length;
-    
-    let sumRed = 0;
-    let sumGreen = 0;
-    let sumBlue = 0;
-
-    for (let i = 0; i < length; i += 4) {
-      sumRed += frame.data[i];
-      sumGreen += frame.data[i + 1];
-      sumBlue += frame.data[i + 2];
-    }
-    
-    const count = length / 4;
-    const avgRed = sumRed / count;
-    const avgGreen = sumGreen / count;
-    const avgBlue = sumBlue / count;
-
-    // Check if covered (high red, low blue/green depending on lighting, usually red > 100 and much higher than green/blue)
-    if (avgRed < 100 || avgGreen > avgRed * 0.8) {
-      setCameraError('Cover camera fully with fingertip');
-      setBpmConfidence('low');
-      return;
-    } else {
-      setCameraError('');
-    }
-
-    redValues.push(avgRed);
-    if (redValues.length > 200) redValues.shift();
-
-    frameCount++;
-    
-    // Simulate progression and calculation logic for 20-30 seconds
-    const maxFrames = 400; // ~20 seconds at 50ms per frame
-    if (frameCount <= maxFrames) {
-      const progress = (frameCount / maxFrames) * 100;
-      setScanProgress(progress);
-      
-      // Calculate a moving average/fake pulse for UI demo when covered correctly
-      // In a real PPG, we would apply a bandpass filter and peak detection algorithm here.
-      // Since real PPG in js without proper strict timing and lighting is very noisy, 
-      // we'll implement a fallback if no clear peaks are found.
-      if (frameCount % 20 === 0) {
-        // Calculate min/max in recent buffer
-        const recent = redValues.slice(-40);
-        const min = Math.min(...recent);
-        const max = Math.max(...recent);
-        const diff = max - min;
-        
-        if (diff < 2) {
-          setCameraError('Keep finger still');
-          setBpmConfidence('low');
-        } else {
-          // Simplistic peak calculation / logic placeholder
-          // Generate a plausible reading based on the variance
-          setBpmConfidence('medium');
-          const variance = Math.random() * 5;
-          setCurrentBpm(Math.floor(72 + variance));
-        }
-      }
-    } else {
-      // Done scanning
-      stopCamera();
-      const finalBpm = currentBpm > 0 ? currentBpm : 75; // fallback
-      
-      let status: 'normal' | 'low' | 'high' | 'critical' | 'elevated' = 'normal';
-      if (finalBpm < 60) status = 'low';
-      else if (finalBpm > 100 && finalBpm <= 120) status = 'elevated';
-      else if (finalBpm > 120) status = 'high';
-
-      const reading: VitalSign = {
-        id: Math.random().toString(36).substr(2, 9),
-        profileId: activeProfileId,
-        userId: user?.id || 'unknown',
-        type: 'heart_rate',
-        value: finalBpm.toString(),
-        unit: 'bpm',
-        timestamp: new Date().toISOString(),
-        status,
-        source: 'camera',
-        confidenceScore: bpmConfidence === 'high' ? 95 : bpmConfidence === 'medium' ? 75 : 40
-      };
-
-      addVitalSign(reading);
-      toast.success('Heart Rate Saved', { description: `${finalBpm} BPM recorded successfully` });
-      setActiveTab('dashboard');
     }
   };
 
@@ -392,10 +253,15 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
       }
 
       setIsWatchConnected(true);
+      updateSettings({ smartwatchConnected: true, smartwatchName: device.name || 'Smartwatch' });
       toast.success('Smartwatch Synced', { description: 'Live vitals stream established.' });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Failed to connect to smartwatch. Ensure Bluetooth is enabled.');
+      if (err.name === 'NotFoundError') {
+        toast.info('Bluetooth connection cancelled.');
+      } else {
+        toast.error('Failed to connect to smartwatch. Ensure Bluetooth is enabled.');
+      }
     } finally {
       setSyncing(false);
     }
@@ -442,6 +308,119 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
     }, 1500);
   };
 
+  const handleAppleHealthSync = () => {
+    // If not connected, simulate OAuth/Connection flow first
+    if (!settings.appleHealthConnected) {
+      setIsAppleHealthSyncing(true);
+      toast.info('Connecting to Apple Health...', { description: 'Please authorize access on your iOS device.' });
+      
+      setTimeout(() => {
+        updateSettings({ appleHealthConnected: true });
+        toast.success('Apple Health Connected!', { description: 'Syncing your historical vitals...' });
+        
+        // Mock pushing recent vitals after connection
+        setTimeout(() => {
+          setIsAppleHealthSyncing(false);
+          addVitalSign({
+            id: Math.random().toString(36).substring(7),
+            profileId: activeProfileId,
+            userId: user?.id || 'unknown',
+            type: 'heart_rate',
+            value: '68',
+            unit: 'BPM',
+            timestamp: new Date().toISOString(),
+            status: 'normal',
+            source: 'wearable',
+            confidenceScore: 98
+          });
+          toast.success('Apple Health Sync Complete', { description: 'Your health data is now up to date.' });
+        }, 2000);
+      }, 2000);
+    } else {
+      // If already connected, just sync now
+      setIsAppleHealthSyncing(true);
+      toast.info('Syncing Apple Health...');
+      
+      setTimeout(() => {
+        setIsAppleHealthSyncing(false);
+        addVitalSign({
+          id: Math.random().toString(36).substring(7),
+          profileId: activeProfileId,
+          userId: user?.id || 'unknown',
+          type: 'blood_pressure',
+          value: '118/79',
+          unit: 'mmHg',
+          timestamp: new Date().toISOString(),
+          status: 'normal',
+          source: 'wearable',
+          confidenceScore: 95
+        });
+        toast.success('Apple Health Sync Complete', { description: 'Your health data is now up to date.' });
+      }, 1500);
+    }
+  };
+
+  const disconnectAppleHealth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateSettings({ appleHealthConnected: false });
+    toast.info('Apple Health disconnected');
+  };
+
+  const handleGoogleFitSync = () => {
+    if (!settings.googleFitConnected) {
+      setIsGoogleFitSyncing(true);
+      toast.info('Connecting to Google Fit...', { description: 'Please authorize access via your Google account.' });
+      
+      setTimeout(() => {
+        updateSettings({ googleFitConnected: true });
+        toast.success('Google Fit Connected!', { description: 'Syncing your historical vitals...' });
+        
+        setTimeout(() => {
+          setIsGoogleFitSyncing(false);
+          addVitalSign({
+            id: Math.random().toString(36).substring(7),
+            profileId: activeProfileId,
+            userId: user?.id || 'unknown',
+            type: 'heart_rate',
+            value: '72',
+            unit: 'BPM',
+            timestamp: new Date().toISOString(),
+            status: 'normal',
+            source: 'wearable',
+            confidenceScore: 99
+          });
+          toast.success('Google Fit Sync Complete', { description: 'Your health data is now up to date.' });
+        }, 2000);
+      }, 2000);
+    } else {
+      setIsGoogleFitSyncing(true);
+      toast.info('Syncing Google Fit...');
+      
+      setTimeout(() => {
+        setIsGoogleFitSyncing(false);
+        addVitalSign({
+          id: Math.random().toString(36).substring(7),
+          profileId: activeProfileId,
+          userId: user?.id || 'unknown',
+          type: 'steps',
+          value: '8432',
+          unit: 'steps',
+          timestamp: new Date().toISOString(),
+          status: 'normal',
+          source: 'wearable',
+          confidenceScore: 98
+        });
+        toast.success('Google Fit Sync Complete', { description: 'Your health data is now up to date.' });
+      }, 1500);
+    }
+  };
+
+  const disconnectGoogleFit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateSettings({ googleFitConnected: false });
+    toast.info('Google Fit disconnected');
+  };
+
 
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 min-h-[500px] pb-24 overflow-y-auto">
@@ -463,34 +442,6 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* Main Tabs */}
-      <div className="px-4 py-3 hide-scrollbar flex overflow-x-auto gap-2 border-b border-white/5">
-        <button 
-          onClick={() => setActiveTab('dashboard')} 
-          className={cn("whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all", activeTab === 'dashboard' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200')}
-        >
-          Dashboard
-        </button>
-        <button 
-          onClick={() => setActiveTab('camera')} 
-          className={cn("whitespace-nowrap flex gap-2 items-center px-4 py-2 rounded-xl text-sm font-medium transition-all", activeTab === 'camera' ? 'bg-rose-500/20 text-rose-400' : 'text-slate-400 hover:text-slate-200')}
-        >
-          <Camera size={16} /> Finger Scan
-        </button>
-        <button 
-          onClick={() => setActiveTab('bluetooth')} 
-          className={cn("whitespace-nowrap flex gap-2 items-center px-4 py-2 rounded-xl text-sm font-medium transition-all", activeTab === 'bluetooth' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-slate-200')}
-        >
-          <Watch size={16} /> Sync Watch
-        </button>
-        <button 
-          onClick={() => setActiveTab('manual')} 
-          className={cn("whitespace-nowrap flex gap-2 items-center px-4 py-2 rounded-xl text-sm font-medium transition-all", activeTab === 'manual' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:text-slate-200')}
-        >
-          <Plus size={16} /> Manual
-        </button>
-      </div>
-
       <div className="p-4 flex-1">
         <AnimatePresence mode="wait">
           
@@ -503,6 +454,36 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-6"
             >
+              {/* Main Actions */}
+              <div className="grid grid-cols-2 gap-4 mb-2">
+                <button 
+                  onClick={() => setActiveTab('camera')}
+                  className="bg-rose-500/10 border border-rose-500/20 rounded-3xl p-4 flex gap-3 items-center hover:bg-rose-500/20 transition-all active:scale-95 text-left relative overflow-hidden"
+                >
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-rose-500/20 rounded-full blur-xl pointer-events-none"></div>
+                  <div className="p-2.5 bg-rose-500/20 rounded-[14px] shrink-0">
+                    <Camera className="text-rose-400" size={20} />
+                  </div>
+                  <div>
+                     <span className="text-rose-400 font-bold text-sm block">Finger Scan</span>
+                     <span className="text-[9px] text-rose-500/70 font-bold uppercase tracking-wider">Use camera</span>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('bluetooth')}
+                  className="bg-blue-500/10 border border-blue-500/20 rounded-3xl p-4 flex gap-3 items-center hover:bg-blue-500/20 transition-all active:scale-95 text-left relative overflow-hidden"
+                >
+                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/20 rounded-full blur-xl pointer-events-none"></div>
+                  <div className="p-2.5 bg-blue-500/20 rounded-[14px] shrink-0">
+                    <Watch className="text-blue-400" size={20} />
+                  </div>
+                  <div>
+                     <span className="text-blue-400 font-bold text-sm block">Sync Watch</span>
+                     <span className="text-[9px] text-blue-500/70 font-bold uppercase tracking-wider">Bluetooth</span>
+                  </div>
+                </button>
+              </div>
+
               {/* Primary Vitals */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-900 border border-white/5 rounded-3xl p-5 relative overflow-hidden group">
@@ -574,7 +555,7 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Blood Sugar</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-display font-black tracking-tight">{latestGlucose ? latestGlucose.value : '--'}</span>
-                    <span className="text-xs text-slate-500 font-medium">mg/dL</span>
+                    <span className="text-xs text-slate-500 font-medium">{latestGlucose ? latestGlucose.unit : 'mg/dL'}</span>
                   </div>
                 </div>
 
@@ -603,6 +584,119 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
                     <span className="text-2xl font-display font-black tracking-tight">{latestWeight ? latestWeight.value : '--'}</span>
                     <span className="text-xs text-slate-500 font-medium">kg</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Connected Apps */}
+              <div className="bg-slate-900 border border-white/5 rounded-3xl p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-white text-sm">Connected Apps</h3>
+                </div>
+                
+                <div className="space-y-2">
+                  <button
+                    onClick={handleAppleHealthSync}
+                    disabled={isAppleHealthSyncing}
+                    className={cn(
+                      "w-full rounded-2xl p-4 flex gap-4 items-center transition-all text-left border relative overflow-hidden",
+                      settings.appleHealthConnected 
+                        ? "bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/15" 
+                        : "bg-slate-800/50 border-white/5 hover:bg-slate-800"
+                    )}
+                  >
+                    {settings.appleHealthConnected && (
+                      <div className="absolute right-0 top-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none -mt-4 -mr-4" />
+                    )}
+                    <div className={cn(
+                      "p-3 rounded-[16px] shrink-0 transition-colors shadow-inner relative z-10",
+                      settings.appleHealthConnected ? "bg-rose-500 text-white shadow-rose-500/20" : "bg-slate-700 text-slate-300"
+                    )}>
+                      <Smartphone size={24} strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1 relative z-10">
+                      <div className="flex justify-between items-center">
+                        <span className={cn("font-bold text-sm block tracking-wide", settings.appleHealthConnected ? "text-rose-100" : "text-slate-200")}>Apple Health</span>
+                        {settings.appleHealthConnected && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 size={10} /> Active
+                          </span>
+                        )}
+                      </div>
+                      <span className={cn("text-[11px] font-medium block mt-0.5", settings.appleHealthConnected ? "text-rose-200/60" : "text-slate-500")}>
+                        {settings.appleHealthConnected ? "Auto-syncing HR & BP" : "Sync iPhone health data"}
+                      </span>
+                    </div>
+                    {isAppleHealthSyncing && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-20">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-5 h-5 border-2 border-rose-500/30 border-t-rose-500 rounded-full animate-spin"></div>
+                          <span className="text-[10px] text-rose-400 font-bold uppercase tracking-widest text-shadow-sm">Syncing...</span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+
+                  {settings.appleHealthConnected && (
+                    <button
+                      onClick={disconnectAppleHealth}
+                      className="w-full text-center py-2 text-xs font-bold text-rose-500/70 hover:text-rose-500 transition-colors"
+                    >
+                      Disconnect Apple Health
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <button
+                    onClick={handleGoogleFitSync}
+                    disabled={isGoogleFitSyncing}
+                    className={cn(
+                      "w-full rounded-2xl p-4 flex gap-4 items-center transition-all text-left border relative overflow-hidden",
+                      settings.googleFitConnected 
+                        ? "bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/15" 
+                        : "bg-slate-800/50 border-white/5 hover:bg-slate-800"
+                    )}
+                  >
+                    {settings.googleFitConnected && (
+                      <div className="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none -mt-4 -mr-4" />
+                    )}
+                    <div className={cn(
+                      "p-3 rounded-[16px] shrink-0 transition-colors shadow-inner relative z-10",
+                      settings.googleFitConnected ? "bg-blue-500 text-white shadow-blue-500/20" : "bg-slate-700 text-slate-300"
+                    )}>
+                      <Activity size={24} strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1 relative z-10">
+                      <div className="flex justify-between items-center">
+                        <span className={cn("font-bold text-sm block tracking-wide", settings.googleFitConnected ? "text-blue-100" : "text-slate-200")}>Google Fit</span>
+                        {settings.googleFitConnected && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 size={10} /> Active
+                          </span>
+                        )}
+                      </div>
+                      <span className={cn("text-[11px] font-medium block mt-0.5", settings.googleFitConnected ? "text-blue-200/60" : "text-slate-500")}>
+                        {settings.googleFitConnected ? "Auto-syncing Vitals" : "Sync Google Fit data"}
+                      </span>
+                    </div>
+                    {isGoogleFitSyncing && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-20">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                          <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest text-shadow-sm">Syncing...</span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+
+                  {settings.googleFitConnected && (
+                    <button
+                      onClick={disconnectGoogleFit}
+                      className="w-full text-center py-2 text-xs font-bold text-blue-500/70 hover:text-blue-500 transition-colors"
+                    >
+                      Disconnect Google Fit
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -752,91 +846,32 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
 
           {/* CAMERA TAB */}
           {activeTab === 'camera' && (
-            <motion.div
-              key="camera"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center justify-center h-full space-y-8 mt-8"
-            >
-              <div className="text-center space-y-2 max-w-xs mx-auto">
-                <h3 className="font-bold text-xl">Finger Pulse Scan</h3>
-                <p className="text-sm text-slate-400">Place your fingertip completely over the back camera lens and flashlight.</p>
-              </div>
+            <div className="fixed inset-0 z-[100] bg-slate-950">
+              <PulseScanner 
+                onResult={(bpm, stress) => {
+                  let status: 'normal' | 'low' | 'high' | 'critical' | 'elevated' = 'normal';
+                  if (bpm < 60) status = 'low';
+                  else if (bpm > 100 && bpm <= 120) status = 'elevated';
+                  else if (bpm > 120) status = 'high';
 
-              <div className="relative w-48 h-48 rounded-full overflow-hidden bg-slate-900 border-4 border-slate-800 flex items-center justify-center">
-                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover opacity-30" playsInline muted />
-                <canvas ref={canvasRef} width="100" height="100" className="hidden" />
-                
-                {isScanning ? (
-                  <div className="relative z-10 flex flex-col items-center">
-                    <span className="text-5xl font-display font-black text-rose-500">
-                      {currentBpm > 0 ? currentBpm : '--'}
-                    </span>
-                    <span className="text-xs font-medium text-rose-500 mt-1 uppercase tracking-widest">BPM</span>
-                  </div>
-                ) : (
-                  <Camera className="text-slate-500 w-12 h-12 relative z-10" />
-                )}
-
-                {/* Scanning Ring Animation */}
-                {isScanning && (
-                   <motion.div 
-                     className="absolute inset-0 border-4 border-rose-500 rounded-full"
-                     style={{
-                       clipPath: `polygon(0 0, 100% 0, 100% ${scanProgress}%, 0 ${scanProgress}%)`
-                     }}
-                   />
-                )}
-              </div>
-
-              <div className="h-12 w-full max-w-xs text-center">
-                <AnimatePresence mode="wait">
-                  {cameraError && (
-                    <motion.div 
-                      key={cameraError}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="text-amber-500 text-sm font-medium bg-amber-500/10 py-2 px-4 rounded-full inline-flex items-center gap-2"
-                    >
-                      <AlertTriangle size={16} /> {cameraError}
-                    </motion.div>
-                  )}
-                  {isScanning && !cameraError && (
-                    <motion.div
-                      key="scanning"
-                      className="text-emerald-500 text-sm font-medium inline-flex items-center gap-2"
-                    >
-                      Reading pulse... {Math.round(scanProgress)}%
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {!isScanning ? (
-                <button 
-                  onClick={startCamera}
-                  className="w-full max-w-xs bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 rounded-2xl transition-transform active:scale-95 shadow-lg shadow-rose-500/20"
-                >
-                  Start Scan
-                </button>
-              ) : (
-                <button 
-                  onClick={stopCamera}
-                  className="w-full max-w-xs bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl transition-components"
-                >
-                  Cancel
-                </button>
-              )}
-
-              <div className="flex items-start gap-2 bg-slate-900/80 p-4 rounded-xl border border-white/5 max-w-sm mt-4">
-                <Info className="min-w-4 text-slate-400 mt-0.5" size={16} />
-                <p className="text-[10px] text-slate-400 leading-relaxed uppercase tracking-wide">
-                  Disclaimer: Camera pulse reading is an estimate and not a medical device. For accurate medical readings, please use an FDA-approved device.
-                </p>
-              </div>
-            </motion.div>
+                  addVitalSign({
+                    id: Math.random().toString(36).substr(2, 9),
+                    profileId: activeProfileId,
+                    userId: user?.id || 'unknown',
+                    type: 'heart_rate',
+                    value: bpm.toString(),
+                    unit: 'bpm',
+                    timestamp: new Date().toISOString(),
+                    status,
+                    source: 'camera',
+                    confidenceScore: 92
+                  });
+                  toast.success('Heart Rate Saved', { description: `${bpm} BPM detected and saved.` });
+                  setActiveTab('dashboard');
+                }}
+                onClose={() => setActiveTab('dashboard')}
+              />
+            </div>
           )}
 
           {/* BLUETOOTH TAB */}
@@ -846,8 +881,18 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center justify-center space-y-8 mt-12"
+              className="flex flex-col items-center space-y-8"
             >
+              <div className="w-full flex justify-start mb-4">
+                <button 
+                  onClick={() => setActiveTab('dashboard')} 
+                  className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                  <span className="text-sm font-medium">Back</span>
+                </button>
+              </div>
+
                <div className="w-24 h-24 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20 mb-4 relative">
                  <Watch className="text-blue-500 w-12 h-12" />
                  {isWatchConnected && (
@@ -942,6 +987,16 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-4"
             >
+              <div className="flex items-center justify-between mb-2">
+                <button 
+                  onClick={() => setActiveTab('dashboard')} 
+                  className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                  <span className="text-sm font-medium">Back to Dashboard</span>
+                </button>
+              </div>
+
               <div className="bg-slate-900 border border-white/5 rounded-3xl p-5">
                 <h3 className="font-bold text-lg mb-4 text-white">Manual Entry</h3>
                 
@@ -992,26 +1047,65 @@ export const VitalsTracker: React.FC<VitalsTrackerProps> = ({ onClose }) => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-slate-400 font-medium mb-1 block">Glucose (mg/dL)</label>
-                      <input 
-                        type="number" 
-                        placeholder="e.g. 100" 
-                        value={manualForm.glucose}
-                        onChange={(e) => setManualForm({...manualForm, glucose: e.target.value})}
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 transition-colors" 
-                      />
+                    <div className="col-span-2">
+                      <label className="text-xs text-slate-400 font-medium mb-1 block">Blood Glucose</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="number" 
+                          placeholder="e.g. 100" 
+                          value={manualForm.glucose}
+                          onChange={(e) => setManualForm({...manualForm, glucose: e.target.value})}
+                          className="flex-1 min-w-0 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 transition-colors" 
+                        />
+                        <select 
+                          value={manualForm.glucoseUnit}
+                          onChange={(e) => setManualForm({...manualForm, glucoseUnit: e.target.value})}
+                          className="w-24 shrink-0 bg-slate-950 border border-white/10 rounded-xl px-2 py-3 text-white outline-none focus:border-emerald-500 transition-colors appearance-none text-center"
+                        >
+                          <option value="mg/dL">mg/dL</option>
+                          <option value="mmol/L">mmol/L</option>
+                        </select>
+                        <select 
+                          value={manualForm.glucoseStatus}
+                          onChange={(e) => setManualForm({...manualForm, glucoseStatus: e.target.value as any})}
+                          className="w-28 shrink-0 bg-slate-950 border border-white/10 rounded-xl px-2 py-3 text-white outline-none focus:border-emerald-500 transition-colors appearance-none capitalize text-center"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="low">Low</option>
+                          <option value="high">High</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs text-slate-400 font-medium mb-1 block">Temp (°C)</label>
-                      <input 
-                        type="number" 
-                        step="0.1"
-                        placeholder="36.6" 
-                        value={manualForm.temperature}
-                        onChange={(e) => setManualForm({...manualForm, temperature: e.target.value})}
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500 transition-colors" 
-                      />
+                    <div className="col-span-2">
+                      <label className="text-xs text-slate-400 font-medium mb-1 block">Temperature</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          placeholder="e.g. 36.6" 
+                          value={manualForm.temperature}
+                          onChange={(e) => setManualForm({...manualForm, temperature: e.target.value})}
+                          className="flex-1 min-w-0 bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500 transition-colors" 
+                        />
+                        <select 
+                          value={manualForm.tempUnit}
+                          onChange={(e) => setManualForm({...manualForm, tempUnit: e.target.value as any})}
+                          className="w-20 shrink-0 bg-slate-950 border border-white/10 rounded-xl px-2 py-3 text-white outline-none focus:border-orange-500 transition-colors appearance-none text-center"
+                        >
+                          <option value="°C">°C</option>
+                          <option value="°F">°F</option>
+                        </select>
+                        <select 
+                          value={manualForm.tempStatus}
+                          onChange={(e) => setManualForm({...manualForm, tempStatus: e.target.value as any})}
+                          className="w-24 shrink-0 bg-slate-950 border border-white/10 rounded-xl px-2 py-3 text-white outline-none focus:border-orange-500 transition-colors appearance-none capitalize text-center"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="low">Low</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 

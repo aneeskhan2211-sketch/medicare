@@ -1,9 +1,10 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
-import { Pill, Trash2, Edit2, Plus, Info, Clock, ChevronRight, AlertTriangle, Droplets, Syringe, ClipboardList, Sun, Moon, CheckCircle2, Calendar } from 'lucide-react';
+import { Pill, Trash2, Edit2, Plus, Info, Clock, ChevronRight, AlertTriangle, Droplets, Syringe, ClipboardList, Sun, Moon, CheckCircle2, Calendar, Package, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { MedicalBackground } from '../components/MedicalBackground';
+import { InventoryWidget } from '../components/InventoryWidget';
 
 import { cn } from '@/lib/utils';
 
@@ -19,9 +21,10 @@ interface MedsProps {
   onSelectMed: (med: Medicine) => void;
   onRefillMed: (med: Medicine) => void;
   onAddMed: () => void;
+  onShowAISuggestions: () => void;
 }
 
-export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed, onAddMed }) => {
+export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed, onAddMed, onShowAISuggestions }) => {
   const medicines = useStore(state => state.medicines);
   const deleteMedicine = useStore(state => state.deleteMedicine);
   const reminders = useStore(state => state.reminders);
@@ -99,68 +102,113 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed, onAddMed }
     return groups;
   }, [profileMedicines, reminders]);
 
-  const renderMedCard = (med: Medicine, index: number) => (
+  const renderMedCard = (med: Medicine, index: number) => {
+    const stockPercent = med.totalStock ? Math.round((med.stock / med.totalStock) * 100) : 0;
+    const isLowStock = med.stock < 5;
+    
+    return (
     <motion.div
       key={med.id}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      whileHover={{ x: 4 }}
+      whileHover={{ scale: 1.01 }}
       layout
     >
       <Card 
         onClick={() => onSelectMed(med)}
-        className="border-none premium-card overflow-hidden group cursor-pointer active:scale-[0.98] transition-all rounded-[20px] bg-card"
+        className="border border-border/50 bg-card/60 backdrop-blur-xl overflow-hidden group cursor-pointer active:scale-[0.98] transition-all rounded-[24px] shadow-sm hover:shadow-md hover:border-primary/20"
       >
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: "100%" }}
-          transition={{ duration: 0.8, delay: 0.2 + (index * 0.1) }}
-          className="h-2" 
-          style={{ backgroundColor: med.color }} 
-        />
-        <CardContent className="p-4 flex items-center gap-4">
+        <CardContent className="p-0 flex flex-col relative overflow-hidden">
           <motion.div 
-            whileHover={{ rotate: [0, -10, 10, 0] }}
-            transition={{ duration: 0.3 }}
-            className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors shadow-inner shrink-0"
-          >
-            {React.cloneElement(getMedIcon(med.type), { size: 22 })}
-          </motion.div>
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors truncate">
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 0.8, delay: 0.2 + (index * 0.1) }}
+            className="absolute top-0 left-0 h-1 z-10" 
+            style={{ backgroundColor: med.color || 'var(--color-primary)' }} 
+          />
+          <div className="p-4 flex gap-4">
+            <motion.div 
+              whileHover={{ rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 0.3 }}
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shadow-inner shrink-0 relative overflow-hidden"
+              style={{ backgroundColor: med.image ? 'transparent' : `${med.color}15` || 'var(--color-muted)' }}
+            >
+              {med.image ? (
+                <img src={med.image} alt={med.name} className="w-full h-full object-cover" />
+              ) : (
+                React.cloneElement(getMedIcon(med.type), { 
+                  size: 26, 
+                  style: { color: med.color || 'currentColor' } 
+                })
+              )}
+            </motion.div>
+            
+            <div className="flex-1 min-w-0 pr-2">
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-foreground text-base truncate pr-2 group-hover:text-primary transition-colors">
                     {med.name}
                   </h4>
-                  <span className="text-[10px] font-bold text-muted-foreground shrink-0">{getNextTime(med)}</span>
+                  <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                    <span 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: med.color || 'var(--color-muted)' }}
+                    />
+                    {med.dosage} • {med.instructions || 'As Directed'}
+                  </p>
                 </div>
-                <p className="text-[10px] text-muted-foreground font-bold mt-0.5">{med.dosage}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <Badge variant="secondary" className={cn(
-                  "font-bold px-1.5 py-0 rounded-md border border-border text-[9px]", 
-                  med.stock < 5 ? "bg-amber-500/20 text-amber-600 border-amber-500/30" : "bg-muted text-muted-foreground"
-                )}>
-                  {med.stock}/{med.totalStock}
-                </Badge>
               </div>
             </div>
             
-            <div className="flex items-center justify-between gap-2 mt-2">
-              <div className="min-w-0 flex-1">
-                <Badge className="bg-primary/5 text-primary border-none text-[9px] font-bold px-2 py-0.5 rounded-lg h-auto whitespace-nowrap overflow-hidden text-ellipsis inline-block max-w-full">
-                  {med.instructions || 'After Meal'}
-                </Badge>
+            <div className="flex flex-col items-end shrink-0 justify-center">
+              <ChevronRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
+            </div>
+          </div>
+
+          <div className="bg-muted/30 p-3 px-4 flex items-center justify-between gap-4 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-background flex items-center justify-center shadow-inner border border-border">
+                <Clock size={12} className="text-primary" />
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Next Dose</p>
+                <p className="text-xs font-bold text-foreground">{getNextTime(med)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 bg-background rounded-full pl-1.5 pr-3 py-1.5 border border-border">
+              <div className={cn(
+                "w-6 h-6 rounded-full flex items-center justify-center",
+                isLowStock ? "bg-amber-500/20 text-amber-600" : "bg-muted text-muted-foreground"
+              )}>
+                <Package size={12} />
+              </div>
+              <div className="flex flex-col items-end w-20">
+                 <div className="flex justify-between w-full mb-1">
+                   <span className="text-[9px] font-bold text-muted-foreground">Stock</span>
+                   <span className={cn(
+                     "text-[10px] font-bold leading-none",
+                     isLowStock ? "text-amber-600" : "text-foreground"
+                   )}>{med.stock}/{med.totalStock}</span>
+                 </div>
+                 <Progress value={stockPercent} className="h-1.5 w-full [&>div]:bg-primary" />
+                 {isLowStock && (
+                   <button 
+                     onClick={(e) => { e.stopPropagation(); useStore.getState().requestRefill(med.id); }}
+                     className="text-[9px] mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded-full"
+                   >
+                     Refill
+                   </button>
+                 )}
               </div>
             </div>
           </div>
-          <ChevronRight size={18} className="text-muted-foreground/20 group-hover:text-primary transition-colors shrink-0" />
+
         </CardContent>
       </Card>
     </motion.div>
-  );
+  )};
 
   return (
     <div className="pb-32 min-h-screen transition-colors duration-300 relative">
@@ -189,6 +237,14 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed, onAddMed }
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={onShowAISuggestions}
+                className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 hover:text-indigo-700 transition-colors border border-indigo-500/20"
+              >
+                 <Sparkles size={18} />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onAddMed}
                 className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse-green"
               >
@@ -210,6 +266,10 @@ export const Meds: React.FC<MedsProps> = ({ onSelectMed, onRefillMed, onAddMed }
         )}
 
         <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="mb-6">
+            <InventoryWidget />
+          </div>
+          
           {profileMedicines.length === 0 ? (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}

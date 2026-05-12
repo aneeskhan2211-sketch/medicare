@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Pill, Clock, Plus, X, Sparkles, Scan, Check, Camera, Upload, Mic, Bell, Settings2, Coffee, Utensils, Droplets } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Pill, Clock, Plus, X, Sparkles, Scan, Camera, Upload, Mic, Bell, Settings2, Coffee, Utensils, Droplets, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-import { Medicine, MedicineType, Lifestyle } from '../types';
-import { extractMedicineInfo, getMedicineRecommendations, getSmartSchedule, checkMedicationInteractions } from '../services/aiService';
+import { Medicine, MedicineType, MedicinePriority } from '../types';
+import { extractMedicineInfo, getSmartSchedule, checkMedicationInteractions } from '../services/aiService';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { 
   Dialog, 
@@ -20,7 +19,6 @@ import {
 import { SmartSchedule } from './SmartSchedule';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface AddMedProps {
   onComplete: () => void;
@@ -30,7 +28,7 @@ interface AddMedProps {
 }
 
 export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, scannerSource, initialData }) => {
-  const { addMedicine, isPremium, activeProfileId, profiles } = useStore();
+  const { addMedicine, activeProfileId, profiles } = useStore();
   const activeProfile = profiles.find(p => p.id === activeProfileId);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +52,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
   const [medImage, setMedImage] = useState<string | null>(null);
   const [prescriptionNumber, setPrescriptionNumber] = useState('');
   const [doctorName, setDoctorName] = useState('');
+  const [priority, setPriority] = useState<MedicinePriority>('normal');
   
   const [isScanning, setIsScanning] = useState(false);
   const [showScanner, setShowScanner] = useState(autoOpenScanner || false);
@@ -84,6 +83,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
       if (initialData.expiryDate) setExpiryDate(initialData.expiryDate);
       if (initialData.prescriptionNumber) setPrescriptionNumber(initialData.prescriptionNumber);
       if (initialData.doctorName) setDoctorName(initialData.doctorName);
+      if (initialData.priority) setPriority(initialData.priority);
       if (initialData.confidence) setFieldConfidence(initialData.confidence);
     }
   }, [initialData]);
@@ -208,9 +208,9 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
         const profileMeds = useStore.getState().medicines.filter(m => m.profileId === activeProfileId);
         // Include the current medicine being added
         const currentMedsList = [...profileMeds, { name, dosage }];
-        const result = await checkMedicationInteractions(currentMedsList);
+        const result = await checkMedicationInteractions(currentMedsList, activeProfile);
         
-        if (result.interactionFound) {
+        if (result.interactionFound || (result.safetyScore && result.safetyScore < 90)) {
           setInteractionResult(result);
           setShowInteractionWarning(true);
           setIsCheckingInteractions(false);
@@ -246,7 +246,8 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
       userId: 'user-1',
       image: medImage || undefined,
       prescriptionNumber: prescriptionNumber || undefined,
-      doctorName: doctorName || undefined
+      doctorName: doctorName || undefined,
+      priority: priority
     };
 
     try {
@@ -318,21 +319,29 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
 
           {/* Image Upload */}
           <div className="space-y-4">
-            <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">MEDICINE IMAGE</label>
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest">MEDICINE PHOTO</label>
+              <span className="text-[10px] font-bold text-muted-foreground/60 italic">Custom photo for identification</span>
+            </div>
+            
             {medImage ? (
               <div className="relative w-full aspect-video rounded-[32px] overflow-hidden border-2 border-slate-200 shadow-md group">
                 <img src={medImage} alt="Medicine" className="w-full h-full object-cover" />
                 
                 {/* Overlay actions */}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                  <button 
-                    className="bg-white/90 backdrop-blur-sm text-slate-900 p-4 rounded-full shadow-lg hover:bg-white transition-all flex items-center justify-center"
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-[2px]">
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="bg-white text-slate-900 p-4 rounded-full shadow-lg hover:bg-white transition-all flex items-center justify-center"
                     onClick={() => medImageInputRef.current?.click()}
                     aria-label="Change image"
                   >
                     <Upload size={20} />
-                  </button>
-                  <button 
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     className="bg-red-500 text-white p-4 rounded-full shadow-lg hover:bg-red-600 transition-all flex items-center justify-center"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -341,19 +350,38 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                     aria-label="Remove image"
                   >
                     <X size={20} />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             ) : (
-              <Button 
-                onClick={() => medImageInputRef.current?.click()}
-                className="w-full h-40 flex flex-col items-center justify-center gap-4 rounded-[32px] border-2 border-dashed border-slate-300 bg-indigo-50/30 text-indigo-600 hover:border-primary/50 hover:bg-indigo-50 transition-all font-bold"
-              >
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-primary border border-border">
-                  <Upload size={28} />
-                </div>
-                <span>Upload a medicine photo</span>
-              </Button>
+              <div className="grid grid-cols-2 gap-4">
+                  <button 
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.capture = 'environment';
+                    input.onchange = (e: any) => handleMedImageSelect(e);
+                    input.click();
+                  }}
+                  className="h-32 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 text-primary hover:border-primary/50 hover:bg-primary/10 transition-all font-bold"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center">
+                    <Camera size={20} />
+                  </div>
+                  <span className="text-xs">Take Photo</span>
+                </button>
+                
+                <button 
+                  onClick={() => medImageInputRef.current?.click()}
+                  className="h-32 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all font-bold"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-400">
+                    <Upload size={20} />
+                  </div>
+                  <span className="text-xs">Upload Image</span>
+                </button>
+              </div>
             )}
             <input ref={medImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleMedImageSelect} />
           </div>
@@ -368,7 +396,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   value={name || ''}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Paracetamol"
-                  className="w-full bg-muted border-none rounded-[24px] p-4 pr-12 focus:ring-2 focus:ring-primary outline-none transition-all font-medium text-foreground"
+                  className="w-full bg-muted border-none rounded-2xl p-4 pr-12 focus:ring-2 focus:ring-primary outline-none transition-all font-medium text-foreground"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                   <Pill size={20} />
@@ -384,7 +412,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   value={dosage || ''}
                   onChange={(e) => setDosage(e.target.value)}
                   placeholder="500mg"
-                  className="w-full bg-muted border-none rounded-[24px] p-4 focus:ring-2 focus:ring-primary outline-none transition-all font-medium text-foreground"
+                  className="w-full bg-muted border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none transition-all font-medium text-foreground"
                 />
               </div>
               <div className="space-y-3">
@@ -392,7 +420,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                 <select 
                   value={type || 'pill'}
                   onChange={(e) => setType(e.target.value as MedicineType)}
-                  className="w-full bg-muted border-none rounded-[24px] p-4 focus:ring-2 focus:ring-primary outline-none transition-all appearance-none font-medium text-foreground"
+                  className="w-full bg-muted border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none transition-all appearance-none font-medium text-foreground"
                 >
                   <option value="pill">Pill</option>
                   <option value="capsule">Capsule</option>
@@ -400,6 +428,37 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   <option value="injection">Injection</option>
                   <option value="topical">Topical</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Priority Level */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">PRIORITY</label>
+              <div className="grid grid-cols-2 gap-3">
+                 <button
+                   onClick={() => setPriority('normal')}
+                   className={cn(
+                     "flex items-center justify-center gap-2 p-4 rounded-2xl transition-all border-2",
+                     priority === 'normal' 
+                       ? "bg-slate-50 border-slate-900 text-slate-900" 
+                       : "bg-muted/50 border-transparent text-muted-foreground"
+                   )}
+                 >
+                   <Pill size={18} />
+                   <span className="text-sm font-bold">Normal</span>
+                 </button>
+                 <button
+                   onClick={() => setPriority('critical')}
+                   className={cn(
+                     "flex items-center justify-center gap-2 p-4 rounded-2xl transition-all border-2",
+                     priority === 'critical' 
+                       ? "bg-rose-50 border-rose-500 text-rose-500 shadow-sm" 
+                       : "bg-muted/50 border-transparent text-muted-foreground"
+                   )}
+                 >
+                   <AlertTriangle size={18} />
+                   <span className="text-sm font-bold">Critical</span>
+                 </button>
               </div>
             </div>
 
@@ -433,19 +492,30 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
             {/* Frequency & Times */}
             <div className="space-y-4">
               <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Frequency</label>
-                <select 
-                  value={frequency || 'Daily'}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  className="w-full bg-muted border-none rounded-[24px] p-4 focus:ring-2 focus:ring-primary outline-none transition-all appearance-none font-medium text-foreground"
-                >
-                  <option value="Daily">Daily</option>
-                  <option value="Twice Daily">Twice Daily</option>
-                  <option value="Three Times Daily">Three Times Daily</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Specific Days">Specific Days</option>
-                  <option value="Every X Days">Every X Days</option>
-                </select>
+                <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">Intake Frequency</label>
+                <div className="relative">
+                  <select 
+                    value={frequency || 'Daily'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFrequency(val);
+                      if (val === 'Twice Daily' && times.length < 2) {
+                        setTimes(['08:00', '20:00']);
+                      } else if (val === 'Daily' && times.length > 1) {
+                        setTimes([times[0]]);
+                      }
+                    }}
+                    className="w-full bg-muted border-none rounded-[24px] p-4 pr-12 focus:ring-2 focus:ring-primary outline-none transition-all appearance-none font-medium text-foreground"
+                  >
+                    <option value="Daily">Daily</option>
+                    <option value="Twice Daily">Twice Daily</option>
+                    <option value="Specific Days">Specific Days</option>
+                    <option value="Every X Days">Every X Days</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                    <Clock size={16} />
+                  </div>
+                </div>
               </div>
 
               {frequency === 'Every X Days' && (
@@ -454,7 +524,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                   animate={{ opacity: 1, height: 'auto' }}
                   className="space-y-3"
                 >
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Repeat every</label>
+                  <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">Repeat every</label>
                   <div className="flex items-center gap-3">
                     <input 
                       type="number" 
@@ -464,6 +534,38 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                       min="1"
                     />
                     <span className="text-sm font-bold text-slate-600">Days</span>
+                  </div>
+                </motion.div>
+              )}
+
+              {frequency === 'Specific Days' && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3"
+                >
+                  <label className="text-[10px] font-black text-foreground/70 uppercase tracking-widest px-1">Select Days</label>
+                  <div className="flex justify-between">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          if (selectedDays.includes(i)) {
+                            setSelectedDays(selectedDays.filter(d => d !== i));
+                          } else {
+                            setSelectedDays([...selectedDays, i]);
+                          }
+                        }}
+                        className={cn(
+                          "w-10 h-10 rounded-full font-bold text-xs transition-all",
+                          selectedDays.includes(i)
+                            ? "bg-primary text-white"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        )}
+                      >
+                        {day}
+                      </button>
+                    ))}
                   </div>
                 </motion.div>
               )}
@@ -644,18 +746,6 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                 />
               </div>
             </div>
-
-            {/* Buy Medicine Option */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Buy Medicine (Partner Pharmacies)</label>
-              <Button 
-                variant="outline"
-                onClick={() => toast.info('Connecting to Partner Pharmacies...', { description: 'Browse and buy your medicine with ease.' })}
-                className="w-full h-16 rounded-[24px] border-2 border-primary/20 text-primary font-bold hover:bg-primary/5 flex items-center justify-center gap-2"
-              >
-                <span className="text-2xl">💊</span> Browse Partner Pharmacies
-              </Button>
-            </div>
           </div>
         </div>
       </ScrollArea>
@@ -663,15 +753,10 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
       <div className="p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 sticky bottom-20 z-30">
         <Button 
           onClick={() => handleAdd()}
-          disabled={isCheckingInteractions}
-          className="w-full h-16 rounded-[24px] text-lg font-bold shadow-xl shadow-primary/30 premium-shadow"
+          loading={isCheckingInteractions}
+          className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 premium-shadow"
         >
-          {isCheckingInteractions ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="animate-spin" size={20} />
-              Checking Interactions...
-            </div>
-          ) : 'Save Medication'}
+          Save Medication
         </Button>
       </div>
 
@@ -692,6 +777,41 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
 
           {interactionResult && (
             <div className="space-y-4 py-4">
+              {interactionResult.safetyScore !== undefined && (
+                <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-3xl mb-2">
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        className="text-muted/20"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={226}
+                        strokeDashoffset={226 - (226 * interactionResult.safetyScore) / 100}
+                        className={cn(
+                          "transition-all duration-1000",
+                          interactionResult.safetyScore > 80 ? "text-emerald-500" :
+                          interactionResult.safetyScore > 50 ? "text-amber-500" : "text-rose-500"
+                        )}
+                      />
+                    </svg>
+                    <span className="absolute text-xl font-black">{interactionResult.safetyScore}</span>
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2">Safety Score</p>
+                </div>
+              )}
+
               <div className={cn(
                 "p-4 rounded-2xl border flex flex-col gap-2",
                 interactionResult.severity === 'critical' || interactionResult.severity === 'high' 
@@ -708,7 +828,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                     {interactionResult.severity} Risk
                   </Badge>
                   <div className="flex gap-1">
-                    {interactionResult.medicines?.map((m: string, i: number) => (
+                    {interactionResult.conflictingItems?.map((m: string, i: number) => (
                       <span key={i} className="text-[10px] font-bold bg-white/50 px-2 py-0.5 rounded-md border border-slate-200">
                         {m}
                       </span>
@@ -720,11 +840,25 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                 </p>
                 <div className="mt-2 pt-2 border-t border-slate-200/50">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">RECOMMENDATION</p>
-                  <p className="text-xs text-slate-600 font-bold italic">
+                  <p className="text-xs text-slate-700 font-bold italic">
                     "{interactionResult.recommendation}"
                   </p>
                 </div>
               </div>
+
+              {interactionResult.alerts?.length > 0 && (
+                <div className="space-y-2">
+                  {interactionResult.alerts.map((alert: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 p-3 rounded-xl bg-muted/50 border border-border">
+                      <AlertTriangle size={14} className={cn(
+                        alert.type === 'danger' ? "text-rose-500" : "text-amber-500"
+                      )} />
+                      <p className="text-xs font-medium">{alert.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <p className="text-[10px] text-center text-muted-foreground italic px-4">
                 Disclaimer: AI tools are for informational purposes only. Consult a doctor for any medical decisions.
               </p>
@@ -800,7 +934,7 @@ export const AddMed: React.FC<AddMedProps> = ({ onComplete, autoOpenScanner, sca
                 </div>
               </div>
             </div>
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+            <input ref={cameraInputRef} type="file" accept="image/*" capture className="hidden" onChange={handleFileSelect} />
             <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
           </motion.div>
         )}

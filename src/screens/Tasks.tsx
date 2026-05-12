@@ -157,17 +157,32 @@ export const Tasks: React.FC = () => {
                 key={task.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ 
-                  opacity: task.status === 'completed' ? 0.7 : 1, 
+                  opacity: task.status === 'completed' ? 0.6 : 1, 
                   y: 0,
-                  scale: task.status === 'completed' ? 0.98 : 1
+                  scale: task.status === 'completed' ? 0.98 : 1,
+                  x: task.status === 'completed' ? [0, -2, 2, -2, 2, 0] : 0 
                 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                transition={{ 
+                  opacity: { duration: 0.4 },
+                  default: { type: "spring", stiffness: 300, damping: 25 }
+                }}
                 layout
               >
                 <Card className={cn(
-                  "border-none premium-card transition-all rounded-xl overflow-hidden",
-                  task.status === 'completed' ? "bg-muted/50 opacity-60 shadow-none" : "bg-card"
+                  "border-none premium-card transition-all rounded-xl overflow-hidden relative",
+                  task.status === 'completed' ? "bg-muted/30 shadow-none border-border/50" : "bg-card shadow-sm"
                 )}>
+                  {/* Satisfaction Pulse */}
+                  <AnimatePresence>
+                    {task.status === 'completed' && (
+                      <motion.div
+                        initial={{ opacity: 1, scale: 1 }}
+                        animate={{ opacity: 0, scale: 1.05 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-emerald-500/10 z-0 pointer-events-none"
+                      />
+                    )}
+                  </AnimatePresence>
                   <CardContent className="p-3 flex items-center gap-3 transition-all">
                     <motion.button 
                       whileTap={{ scale: 0.8 }}
@@ -178,7 +193,7 @@ export const Tasks: React.FC = () => {
                         if (isCompleting) {
                           playSuccessSound();
                           toast.success('Task completed! 🎉', {
-                            description: task.recurrence && task.recurrence !== 'none' ? `Next ${task.recurrence} task created.` : undefined
+                            description: `+5 Coins earned! ${task.recurrence && task.recurrence !== 'none' ? 'Next task created.' : ''}`
                           });
                         }
                       }}
@@ -191,40 +206,50 @@ export const Tasks: React.FC = () => {
                         <motion.div
                           key={task.status}
                           initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1, rotate: task.status === 'completed' ? [0, -15, 15, 0] : 0 }}
+                          animate={{ 
+                            scale: 1, 
+                            opacity: 1, 
+                            rotate: task.status === 'completed' ? [0, -20, 20, 0] : 0,
+                            zoom: task.status === 'completed' ? [1, 1.2, 1] : 1
+                          }}
                           exit={{ scale: 0.5, opacity: 0 }}
                           transition={{ 
                             default: { type: "spring", stiffness: 500, damping: 25 },
-                            rotate: { duration: 0.4, ease: "easeInOut" }
+                            rotate: { duration: 0.5, ease: "easeInOut" },
+                            zoom: { duration: 0.3 }
                           }}
                         >
-                          {task.status === 'completed' ? <CheckCircle2 size={22} /> : <Circle size={22} />}
+                          {task.status === 'completed' ? <CheckCircle2 size={24} strokeWidth={3} /> : <Circle size={22} />}
                         </motion.div>
                       </AnimatePresence>
                       
                       <AnimatePresence>
                         {task.status === 'completed' && (
                           <>
-                            {/* Confetti Particles */}
-                            {[...Array(6)].map((_, i) => (
+                            {/* Confetti Particles - Enhanced */}
+                            {[...Array(12)].map((_, i) => (
                               <motion.div
                                 key={i}
-                                initial={{ scale: 0, x: 0, y: 0 }}
+                                initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
                                 animate={{ 
-                                  scale: [0, 1, 0],
-                                  x: [0, (i % 2 === 0 ? 1 : -1) * (15 + Math.random() * 20)],
-                                  y: [0, (Math.floor(i/2) - 1) * (15 + Math.random() * 20)],
-                                  rotate: [0, 180]
+                                  scale: [0, 1, 0.5, 0],
+                                  x: [0, (Math.cos((i * 30) * Math.PI / 180) * (20 + Math.random() * 30))],
+                                  y: [0, (Math.sin((i * 30) * Math.PI / 180) * (20 + Math.random() * 30))],
+                                  rotate: [0, 360],
+                                  opacity: [1, 1, 0]
                                 }}
-                                transition={{ duration: 0.6, ease: "easeOut" }}
-                                className="absolute w-1 h-1 rounded-full bg-emerald-400"
+                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                className={cn(
+                                  "absolute w-1.5 h-1.5 rounded-full shadow-sm",
+                                  i % 3 === 0 ? "bg-emerald-400" : i % 3 === 1 ? "bg-yellow-400" : "bg-blue-400"
+                                )}
                               />
                             ))}
                             <motion.div
                               initial={{ scale: 0, opacity: 0 }}
-                              animate={{ scale: 1.8, opacity: 0 }}
-                              transition={{ duration: 0.4 }}
-                              className="absolute inset-0 rounded-full bg-emerald-500/20"
+                              animate={{ scale: [0, 2.5], opacity: [0, 0.3, 0] }}
+                              transition={{ duration: 0.5 }}
+                              className="absolute inset-0 rounded-full bg-emerald-500/30 blur-sm"
                             />
                           </>
                         )}
@@ -232,13 +257,18 @@ export const Tasks: React.FC = () => {
                     </motion.button>
                     <div className="flex-1 min-w-0">
                       <div className="relative inline-block max-w-full">
-                        <h4 className={cn(
-                          "font-black text-foreground text-base transition-colors duration-500 truncate leading-tight uppercase tracking-tight",
-                          task.status === 'completed' && "text-muted-foreground opacity-50",
-                          task.title.toLowerCase().includes('blood pressure') && "text-rose-600 dark:text-rose-400"
-                        )}>
-                          {task.title}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className={cn(
+                            "font-black text-foreground text-base transition-colors duration-500 truncate leading-tight uppercase tracking-tight",
+                            task.status === 'completed' && "text-muted-foreground opacity-50",
+                            task.title.toLowerCase().includes('blood pressure') && "text-rose-600 dark:text-rose-400"
+                          )}>
+                            {task.title}
+                          </h4>
+                          {task.status === 'pending' && (
+                             <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-md font-bold">+5 🪙</span>
+                          )}
+                        </div>
                         <AnimatePresence>
                           {task.status === 'completed' && (
                             <motion.div 

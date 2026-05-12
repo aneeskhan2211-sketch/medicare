@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.id == request.auth.uid;
+    }
+
+    function isValidSession(data) {
+      return data.userId == request.auth.uid;
+    }
+
+    function isValidLinkedAccount(data) {
+      return isSignedIn();
+    }
+
+    // --- Rules ---
+
+    // Users
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUser(incoming());
+      allow delete: if false;
+
+      // Sessions subcollection
+      match /sessions/{sessionId} {
+        allow list, get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSession(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // Linked accounts subcollection
+      match /linked_accounts/{providerId} {
+        allow list, get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidLinkedAccount(incoming());
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // OTP logs (limited write, system-only read)
+    match /otp_logs/{logId} {
+      allow create: if isSignedIn() && incoming().phone is string && (logId.size() <= 128);
+    }
+
+    // Security logs
+    match /security_logs/{logId} {
+      allow create: if isSignedIn() && (incoming().userId == request.auth.uid);
+    }
+
+    // Connection test
+    match /test/connection {
+      allow get: if true;
+    }
+  }
+}

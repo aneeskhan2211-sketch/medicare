@@ -12,7 +12,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
   const tabs = [
     { id: 'home', icon: Home, label: 'Home' },
     { id: 'meds', icon: Pill, label: 'Meds' },
-    { id: 'calendar', icon: Calendar, label: 'Calendar View' },
+    { id: 'calendar', icon: Calendar, label: 'Appointments' },
     { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
     { id: 'profile', icon: User, label: 'Profile' },
   ];
@@ -34,16 +34,16 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
           >
             <motion.div
               animate={{ 
-                scale: isActive ? 1.2 : 1,
-                y: isActive ? -2 : 0
+                scale: isActive ? 1.15 : 1,
+                y: isActive ? -4 : 0
               }}
               transition={{ type: "spring", stiffness: 400, damping: 15 }}
             >
-              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={26} strokeWidth={isActive ? 2.5 : 2} />
             </motion.div>
             <span className={cn(
-              "text-[10px] font-bold tracking-tight transition-all",
-              isActive ? "opacity-100" : "opacity-60"
+              "text-xs font-semibold tracking-tight transition-all",
+              isActive ? "opacity-100" : "opacity-70"
             )}>
               {tab.label}
             </span>

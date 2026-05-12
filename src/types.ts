@@ -7,12 +7,15 @@ export interface ChatMessage {
 }
 
 export type MedicineType = 'pill' | 'capsule' | 'liquid' | 'injection' | 'topical';
+export type MedicinePriority = 'normal' | 'critical';
 
 export interface Profile {
   id: string;
   name: string;
   age: number;
   gender: 'male' | 'female' | 'other';
+  height?: number; // cm
+  weight?: number; // kg
   avatar?: string;
   color: string;
   lifestyle?: Lifestyle;
@@ -21,6 +24,9 @@ export interface Profile {
     phone: string;
     relation: string;
   };
+  bloodType?: string;
+  allergies?: string[];
+  conditions?: string[];
 }
 
 export interface Lifestyle {
@@ -32,6 +38,7 @@ export interface Lifestyle {
     dinner: string;
   };
   activityLevel: 'low' | 'moderate' | 'high';
+  steps?: number;
   notes?: string;
 }
 
@@ -67,6 +74,8 @@ export interface Medicine {
   image?: string;
   prescriptionNumber?: string;
   doctorName?: string;
+  priority?: MedicinePriority;
+  lowStockThreshold?: number;
 }
 
 export interface Reminder {
@@ -84,15 +93,85 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   isPremium: boolean;
   tier: SubscriptionTier;
   avatar?: string;
   coins: number;
   balance: number;
   streak: number;
+  maxStreak: number;
   lastLogin?: string;
+  createdAt?: string;
+  loginProvider?: string;
+  deviceInfo?: string;
+  notificationPreferences?: {
+    push: boolean;
+    email: boolean;
+    sms: boolean;
+  };
+  healthProfile?: {
+    age?: number;
+    gender?: string;
+    weight?: number;
+    height?: number;
+    conditions?: string[];
+    goals?: string[];
+  };
   aiQueriesToday: number;
   lastAiQueryDate?: string;
+  achievements: Achievement[];
+  leaderboardRank?: number;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  deviceInfo: string;
+  lastActive: string;
+  ipAddress?: string;
+  location?: string;
+}
+
+export interface LinkedAccount {
+  providerId: string;
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt?: string;
+  progress: number; // 0-100
+  type: 'streak' | 'adherence' | 'meds' | 'profile';
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  relation: string;
+  avatar?: string;
+  lastAdherence?: number; // percentage
+  streak: number;
+  medsToday: {
+    taken: number;
+    total: number;
+  };
+  lastSeen?: string;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  avatar?: string;
+  score: number;
+  rank: number;
+  isCurrentUser: boolean;
 }
 
 export interface AuthState {
@@ -122,6 +201,13 @@ export interface AdherenceData {
 }
 
 export interface Settings {
+  hasCompletedOnboarding?: boolean;
+  appleHealthConnected?: boolean;
+  googleFitConnected?: boolean;
+  smartwatchConnected?: boolean;
+  smartwatchName?: string;
+  abhaConnected?: boolean;
+  abhaId?: string;
   notifications: {
     enabled: boolean;
     emailEnabled: boolean;
@@ -144,6 +230,14 @@ export interface Settings {
     autoSync: boolean;
     lastSynced?: string;
   };
+  caregiverAlerts?: {
+    enabled: boolean;
+    name: string;
+    email: string;
+    phone: string;
+    alertOnMissingCritical: boolean;
+  };
+  sensitivity: number;
 }
 
 export type VitalsSource = 'manual' | 'wearable' | 'bluetooth' | 'demo';
@@ -152,7 +246,7 @@ export interface VitalSign {
   id: string;
   profileId: string;
   userId: string;
-  type: 'blood_pressure' | 'glucose' | 'heart_rate' | 'spo2' | 'temperature' | 'weight';
+  type: 'blood_pressure' | 'glucose' | 'heart_rate' | 'spo2' | 'temperature' | 'weight' | 'steps';
   value: string; // "120/80", "110", etc.
   unit: string; // "mmHg", "mg/dL", "bpm", "%", "°C", "kg"
   timestamp: string;
@@ -168,9 +262,20 @@ export interface HealthReport {
   profileId: string;
   title: string;
   date: string;
+  year: number; // For categorization
+  category: string; // e.g., 'Blood Test', 'Prescription', 'Insurance'
   summary: string;
   imageUrl?: string;
-  type: 'prescription' | 'lab_result' | 'scan' | 'other';
+  type: 'prescription' | 'lab_result' | 'scan' | 'insurance' | 'other';
+  patientName?: string;
+  doctorFollowUp?: string;
+  metrics?: Array<{
+    name: string;
+    value: string | number;
+    unit: string;
+    status: string;
+  }>;
+  recommendations?: string[];
 }
 
 export interface Appointment {
@@ -183,6 +288,8 @@ export interface Appointment {
   status: 'upcoming' | 'completed' | 'cancelled';
   notes?: string;
   location?: string;
+  reminderEnabled?: boolean;
+  reminderTimeMinutes?: number;
 }
 
 export interface Symptom {
@@ -191,6 +298,9 @@ export interface Symptom {
   userId: string;
   name: string;
   severity: 'mild' | 'moderate' | 'severe';
+  mood?: 'great' | 'good' | 'neutral' | 'low' | 'bad';
+  energy?: 1 | 2 | 3 | 4 | 5;
+  pain?: 0 | 1 | 2 | 3 | 4 | 5;
   timestamp: string;
   notes?: string;
 }
@@ -201,4 +311,88 @@ export interface InteractionCheck {
   severity: 'low' | 'moderate' | 'high' | 'critical';
   details: string;
   recommendation: string;
+}
+
+export interface Meal {
+  id: string;
+  profileId: string;
+  name: string;
+  calories: number;
+  type: string;
+  time: string;
+  protein?: number;
+  carbs?: number;
+  fats?: number;
+  healthyRemarks?: string[];
+  unhealthyRemarks?: string[];
+  date: string; // YYYY-MM-DD
+}
+
+export interface HealthInsight {
+  title: string;
+  description: string;
+  correlation: string;
+  recommendation: string;
+  severity: 'low' | 'moderate' | 'high';
+  type: 'diet' | 'vitals' | 'medication' | 'lifestyle';
+}
+
+export type ActivityType = 'WALKING' | 'RUNNING' | 'JOGGING' | 'CYCLING' | 'STILL' | 'IN_VEHICLE' | 'SLEEPING' | 'STAIR_CLIMBING' | 'WORKOUT';
+
+export interface ActivitySession {
+  id: string;
+  profileId: string;
+  type: ActivityType;
+  startTime: string;
+  endTime?: string;
+  durationSeconds: number;
+  steps: number;
+  distanceKm: number;
+  caloriesBurned: number;
+  averageSpeed: number; // km/h
+  pace: number; // min/km
+  heartRateAvg?: number;
+  confidenceScore: number;
+  autoDetected: boolean;
+}
+
+export interface DailySummary {
+  date: string; // YYYY-MM-DD
+  profileId: string;
+  totalSteps: number;
+  totalDistance: number;
+  totalCalories: number;
+  activeMinutes: number;
+  walkingMinutes: number;
+  runningMinutes: number;
+  cyclingMinutes: number;
+  idleMinutes: number;
+  sleepHours: number;
+  healthScore: number;
+}
+
+export interface HealthChallenge {
+  id: string;
+  title: string;
+  description: string;
+  category: 'water' | 'steps' | 'sleep' | 'nutrition' | 'meditation' | 'medication';
+  targetValue: number;
+  unit: string;
+  durationDays: number;
+  rewardCoins: number;
+  icon: string;
+}
+
+export interface UserChallenge {
+  id: string;
+  challengeId: string;
+  userId: string;
+  profileId: string;
+  startDate: string;
+  progress: number;
+  isCompleted: boolean;
+  claimedReward: boolean;
+  lastProgressUpdate?: string;
+  completedAt?: string;
+  rewardClaimedAt?: string;
 }

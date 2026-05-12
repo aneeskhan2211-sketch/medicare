@@ -6,23 +6,42 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SettingsDialog } from './SettingsDialog';
+import { AddProfileDialog } from './AddProfileDialog';
+import { ProfileEditorDialog } from './ProfileEditorDialog';
 import { MedicalBackground } from '../components/MedicalBackground';
+import { MediPass } from '../components/MediPass';
 
 interface ProfileProps {
   onShowPaywall: () => void;
   onShowBranding: () => void;
   onShowWallet: () => void;
+  onShowAbout: () => void;
+  onShowTeleConsultation: () => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding, onShowWallet }) => {
-  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile, addCoins, settings, updateSettings } = useStore();
+export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding, onShowWallet, onShowAbout, onShowTeleConsultation }) => {
+  const { user, isPremium, syncData, profiles, activeProfileId, setActiveProfile, addCoins, settings, updateSettings, medicines, logout } = useStore();
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const [showSettings, setShowSettings] = useState(false);
+  const [showAddProfile, setShowAddProfile] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showMediPass, setShowMediPass] = useState(false);
+
+  const handleLogout = () => {
+    toast.promise(async () => {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      logout();
+    }, {
+      loading: 'Signing out...',
+      success: 'Logged out successfully',
+      error: 'Failed to sign out'
+    });
+  };
 
   const handleSync = async () => {
     if (!isPremium) {
@@ -33,12 +52,12 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
   };
 
   const handleReferral = async () => {
-    const referralLink = "https://medimind.app/invite?ref=" + user?.id;
+    const referralLink = "https://MediPulse.app/invite?ref=" + user?.id;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join MediMind',
-          text: 'Get Rs 100 worth of bonus coins in MediMind! Join me.',
+          title: 'Join MediPulse',
+          text: 'Get Rs 100 worth of bonus coins in MediPulse! Join me.',
           url: referralLink,
         });
         addCoins(100);
@@ -114,14 +133,14 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             </div>
             
             <div className="flex gap-4 w-full max-w-xs mx-auto">
-              <div className="flex-1 bg-card p-4 rounded-[24px] premium-card border border-border flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-2 rounded-xl premium-card border border-border flex flex-col items-center gap-0.5">
                 <div className="flex items-center gap-1.5">
                   <Flame size={20} className="text-orange-500 fill-orange-500" />
                   <span className="text-xl font-bold text-foreground">{user?.streak || 0}</span>
                 </div>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Day Streak</span>
               </div>
-              <div className="flex-1 bg-card p-4 rounded-[24px] premium-card border border-border flex flex-col items-center gap-1">
+              <div className="flex-1 bg-card p-2 rounded-xl premium-card border border-border flex flex-col items-center gap-0.5">
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] font-bold text-white">C</div>
                   <span className="text-xl font-bold text-foreground">{user?.coins || 0}</span>
@@ -151,7 +170,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
                 <div className="flex items-center gap-2">
                   <Crown size={20} className={user?.tier !== 'basic' ? "text-white" : "text-amber-400"} fill="currentColor" />
                   <span className="text-sm font-bold tracking-widest uppercase">
-                    {user?.tier === 'basic' ? "MediMind Pro" : `MediMind ${user?.tier?.replace('_', ' ').toUpperCase() || 'PRO'}`}
+                    {user?.tier === 'basic' ? "MediPulse Pro" : `MediPulse ${user?.tier?.replace('_', ' ').toUpperCase() || 'PRO'}`}
                   </span>
                 </div>
                 <h3 className="text-xl font-bold">
@@ -170,7 +189,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             <div className="flex justify-between items-center px-1">
               <h3 className="font-display font-bold text-lg text-foreground">Family Profiles</h3>
               <button 
-                onClick={() => isPremium ? toast.info('Add profile feature coming soon!') : onShowPaywall()}
+                onClick={() => isPremium ? setShowAddProfile(true) : onShowPaywall()}
                 className="text-primary text-sm font-bold flex items-center gap-1"
               >
                 <Plus size={16} /> Add New
@@ -204,30 +223,82 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
             </div>
           </section>
 
+          {/* Personal Medical Info */}
+          <section className="space-y-4">
+            <h3 className="font-display font-bold text-lg text-foreground px-1">Medical Profile</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-none bg-card rounded-xl shadow-sm p-3">
+                <div className="text-muted-foreground text-xs font-bold uppercase mb-1">Blood Type</div>
+                <div className="font-bold text-xl">{activeProfile.bloodType || 'Not set'}</div>
+              </Card>
+              <Card className="border-none bg-card rounded-xl shadow-sm p-3">
+                <div className="text-muted-foreground text-xs font-bold uppercase mb-1">Allergies</div>
+                <div className="font-bold text-sm truncate">{activeProfile.allergies?.join(', ') || 'None'}</div>
+              </Card>
+            </div>
+            <Card className="border-none bg-card rounded-xl shadow-sm p-3">
+              <div className="text-muted-foreground text-xs font-bold uppercase mb-1">Medical Conditions</div>
+              <div className="font-bold text-sm">{activeProfile.conditions?.join(', ') || 'None'}</div>
+            </Card>
+            <Button 
+              variant="outline"
+              onClick={() => setShowEditProfile(true)}
+              className="w-full h-12 rounded-[20px] font-bold border-2"
+            >
+              Edit Medical Profile
+            </Button>
+          </section>
+
           {/* Emergency Section */}
+
           <section className="space-y-4">
             <h3 className="font-display font-bold text-lg text-foreground px-1">Emergency</h3>
-            <Card className="border-none bg-destructive/10 rounded-[20px] premium-card overflow-hidden">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center text-destructive shadow-sm">
-                  <Phone size={28} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-foreground">{activeProfile.emergencyContact?.name || 'Emergency Contact'}</h4>
-                  <p className="text-xs text-muted-foreground font-medium">{activeProfile.emergencyContact?.phone || 'Not set'}</p>
-                </div>
-                <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-2xl px-6 h-12 font-bold shadow-lg shadow-destructive/20 animate-pulse-green">
-                  Call
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="grid gap-4">
+              <Card 
+                onClick={() => setShowMediPass(true)}
+                className="border-none bg-rose-500/10 rounded-2xl premium-card overflow-hidden cursor-pointer group hover:bg-rose-500/20 transition-all border border-rose-500/20"
+              >
+                <CardContent className="p-4 flex items-center gap-3">
+                  <motion.div 
+                    whileHover={{ rotate: 10 }}
+                    className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center text-rose-500 shadow-sm group-hover:scale-110 transition-transform"
+                  >
+                    <Shield size={24} />
+                  </motion.div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-foreground">Emergency Medi-Pass</h4>
+                    <p className="text-xs text-muted-foreground font-medium">Digital identity for first responders</p>
+                  </div>
+                  <ChevronRight size={20} className="text-muted-foreground group-hover:text-rose-500 transition-colors" />
+                </CardContent>
+              </Card>
+
+              <Card className="border-none bg-destructive/10 rounded-xl premium-card overflow-hidden">
+                <CardContent className="p-3 flex items-center gap-3">
+                  <motion.div 
+                    whileHover={{ scale: 1.1 }}
+                    className="w-12 h-12 rounded-xl bg-card flex items-center justify-center text-destructive shadow-sm"
+                  >
+                    <Phone size={20} />
+                  </motion.div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-foreground text-sm">{activeProfile.emergencyContact?.name || 'Emergency Contact'}</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium">{activeProfile.emergencyContact?.phone || 'Not set'}</p>
+                  </div>
+                  <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl px-4 h-10 font-bold shadow-lg shadow-destructive/20 animate-pulse-green">
+                    Call
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </section>
 
           {/* Settings Menu */}
           <section className="space-y-4">
             <h3 className="font-display font-bold text-lg text-foreground px-1">Settings</h3>
-            <div className="bg-card rounded-[20px] shadow-sm overflow-hidden border border-border">
+            <div className="bg-card rounded-2xl shadow-sm overflow-hidden border border-border">
               <MenuButton icon={Settings} label="General Settings" onClick={() => setShowSettings(true)} />
+              <MenuButton icon={Stethoscope} label="Tele-Consultation" onClick={onShowTeleConsultation} />
               <MenuButton icon={WalletIcon} label="My Wallet" onClick={onShowWallet} />
               <MenuButton icon={UserPlus} label="Refer friends & get Rs 100" onClick={handleReferral} />
               <MenuButton icon={Bell} label="Notifications" onClick={() => setShowSettings(true)} />
@@ -235,14 +306,35 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
               <MenuButton icon={Cloud} label="Data & Sync" onClick={handleSync} />
               <MenuButton icon={CreditCard} label="Subscription" badge={!isPremium ? "FREE" : "PRO"} onClick={onShowPaywall} />
               <MenuButton icon={HelpCircle} label="Help & Support" onClick={() => toast.info('Help & Support coming soon!')} />
+              <MenuButton icon={HelpCircle} label="About MediPulse" onClick={onShowAbout} />
             </div>
           </section>
 
           <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
+          <AddProfileDialog open={showAddProfile} onClose={() => setShowAddProfile(false)} />
+          <ProfileEditorDialog open={showEditProfile} onClose={() => setShowEditProfile(false)} profile={activeProfile} />
+
+          <AnimatePresence>
+            {showMediPass && (
+              <motion.div 
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed inset-0 z-[100] bg-slate-900"
+              >
+                <MediPass 
+                  profile={activeProfile} 
+                  medicines={medicines}
+                  onClose={() => setShowMediPass(false)} 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <Button 
             variant="ghost" 
-            onClick={() => toast.info('Sign out coming soon!')}
+            onClick={handleLogout}
             className="w-full h-16 rounded-[24px] text-destructive hover:text-destructive/80 hover:bg-destructive/10 font-bold text-lg"
           >
             <LogOut size={20} className="mr-3" />
@@ -250,7 +342,7 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
           </Button>
 
           <div className="text-center space-y-1">
-            <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-[0.2em]">MediMind v2.0.4</p>
+            <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-[0.2em]">MediPulse v2.0.4</p>
             <p className="text-[10px] font-medium text-muted-foreground/30">Made with ❤️ for your health</p>
           </div>
         </div>
@@ -262,10 +354,10 @@ export const Profile: React.FC<ProfileProps> = ({ onShowPaywall, onShowBranding,
 const MenuButton = ({ icon: Icon, label, badge, onClick }: any) => (
   <button 
     onClick={onClick}
-    className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-all group border-b border-border last:border-none"
+    className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-all group border-b border-border last:border-none"
   >
     <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-[18px] bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all">
+      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all">
         <Icon size={22} />
       </div>
       <span className="font-bold text-foreground/80 group-hover:text-foreground transition-colors">{label}</span>
